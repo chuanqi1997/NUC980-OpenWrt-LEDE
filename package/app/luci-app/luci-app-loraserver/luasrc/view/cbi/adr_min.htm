@@ -1,0 +1,103 @@
+<%+cbi/valueheader%>
+<script type="text/javascript">
+	var US915_DR = [0,1,2,3,4];
+	var US915_RX_DR = [8,9,10,11,12,13];
+	var US915_DR_SF = [10, 9, 8,  7,  8,  0,  0, 0, 12, 11, 10, 9, 8, 7, 0, 0];
+	var US915_DR_BW = [125000, 125000, 125000, 125000, 500000, 0, 0, 0, 500000, 500000, 500000, 500000, 500000, 500000, 0, 0];
+
+	var CN470_DR = [0,1,2,3,4,5];
+	var CN470_DR_SF = [12, 11, 10,  9,  8,  7]
+	var CN470_DR_BW = [125000, 125000, 125000, 125000, 125000, 125000]
+
+	var EU868_DR = [0,1,2,3,4,5,6,7];
+	var EU868_DR_SF = [ 12, 11, 10,  9,  8,  7,  7, 50 ]
+	var EU868_DR_BW = [ 125000, 125000, 125000, 125000, 125000, 125000, 250000, 0 ]
+	
+	var AU915_DR =    [0,1,2,3,4,5,6];
+	var AU915_RX_DR = [8,9,10,11,12,13];
+	var AU915_DR_SF = [ 12, 11, 10, 9, 8, 7, 8, 0, 12, 11, 10, 9, 8, 7, 0, 0 ]
+	var AU915_DR_BW = [ 125000, 125000, 125000, 125000, 125000, 125000, 500000, 0, 500000, 500000, 500000, 500000, 500000, 500000, 0, 0 ]
+
+	var EU433_DR = [0,1,2,3,4,5,6,7];
+	var EU433_DR_SF = [12, 11, 10,  9,  8,  7,  7, 50]
+	var EU433_DR_BW = [125000, 125000, 125000, 125000, 125000, 125000, 250000, 0]
+	
+	var IN865_DR = [ 0,1,2,3,4,5,6,7];
+	var IN865_DR_SF = [ 12, 11, 10,  9,  8,  7,  7, 50 ]
+	var IN865_DR_BW = [125000, 125000, 125000, 125000, 125000, 125000, 250000, 0]
+
+	var AS923_DR = [0,1,2,3,4,5,6,7];
+	var AS923_DR_SF = [12, 11, 10,  9,  8,  7, 7, 50]
+	var AS923_DR_BW = [125000, 125000, 125000, 125000, 125000, 125000, 250000, 0]
+
+	var KR920_DR = [0,1,2,3,4,5];
+	var KR920_DR_SF = [12, 11, 10,  9,  8,  7]
+	var KR920_DR_BW = [125000, 125000, 125000, 125000, 125000, 125000 ]
+
+	var RU864_DR = [0,1,2,3,4,5,6,7]
+	var RU864_DR_SF = [ 12, 11, 10,  9,  8,  7,  7, 50 ]
+	var RU864_DR_BW = [ 125000, 125000, 125000, 125000, 125000, 125000, 250000, 0 ]
+	function appendDr(region, curDrMin, curDrMax){
+		var drMinObj = $("#cbid\\.lorasrv\\.lorasrv\\.dr_min");
+		var drMaxObj = $("#cbid\\.lorasrv\\.lorasrv\\.dr_max");
+		var dealDrMin = curDrMin ? curDrMin : eval(region+"_DR")[0];
+		var dealDrMax = curDrMax ? curDrMax : dealDrMin;
+		if( dealDrMax < dealDrMin){
+			dealDrMax = dealDrMin;
+		}
+		drMinObj.empty();
+		eval(region + "_DR").forEach(function(v,i){
+			var text;
+			var dr = eval(region + "_DR_SF")[v];
+			var bw = eval(region + "_DR_BW")[v];
+			if( dr <= 12 ){
+				text = "SF" + dr + "BW" + ( bw / 1000);
+			}
+			else if( dr > 12 ){
+				text = "FSK" + dr + "Kbps"
+			}
+			drMinObj.append("<option value='"+v+"'>DR_"+v+" - "+text+"</option>")
+		});
+		drMinObj.val(dealDrMin);
+
+		drMaxObj.empty();
+		eval(region+"_DR").forEach(function(v,i){
+			if(v >= dealDrMin){
+				var text;
+				var dr = eval(region + "_DR_SF")[v];
+				var bw = eval(region + "_DR_BW")[v];
+				if( dr <= 12 ){
+					text = "SF" + dr + "BW" + ( bw / 1000);
+				}
+				else if( dr > 12 ){
+					text = "FSK" + dr + "Kbps"
+				}
+				drMaxObj.append("<option value='"+v+"'>DR_"+v+" - "+text+"</option>");
+			}
+		});
+		drMaxObj.val(dealDrMax);
+
+	}
+
+	$(document).ready(function(){
+		var regObj = $("#cbid\\.lorasrv\\.lorasrv\\.band");
+		var drMinObj = $("#cbid\\.lorasrv\\.lorasrv\\.dr_min");
+		var drMaxObj = $("#cbid\\.lorasrv\\.lorasrv\\.dr_max");
+
+		var region = regObj.val();
+		appendDr(region,<%=tostring(self:cfgvalue(section) or self.default or 0)%>,<%=tostring(self.map:get("lorasrv","dr_max") or 0)%>);
+		console.log(region);
+		regObj.change(function(){
+			appendDr(regObj.val());
+		});
+		drMinObj.change(function(){
+			appendDr(regObj.val(), drMinObj.val(), drMaxObj.val());
+		});
+	});
+</script>
+<select class="cbi-input-select" onchange="cbi_d_update(this.id)"<%= attr("id", cbid) .. attr("name", cbid) .. ifattr(self.size, "size") %>>
+<% for i, key in pairs(self.keylist) do -%>
+	<option id="cbi-<%=self.config.."-"..section.."-"..self.option.."-"..key%>"<%= attr("value", key) .. ifattr(tostring(self:cfgvalue(section) or self.default) == key, "selected", "selected") %>><%=striptags(self.vallist[i])%></option>
+<%- end %>
+</select>
+<%+cbi/valuefooter%>

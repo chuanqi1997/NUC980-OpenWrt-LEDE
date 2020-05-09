@@ -1,0 +1,84 @@
+<%
+local dsp = require "luci.dispatcher"
+local app = self.app_id
+local dev = self.dev_id
+%>
+<script type="text/javascript">
+	$(document).ready(function(){
+		$("#send").click(function(){
+			$("#send").attr("disabled",true);
+			$.ajax({
+				method : "get",
+				url : "<%=dsp.build_url('admin','loraserver','app','downlink', app, dev)%>" + "?confirmed="+($("#confirmed").is(":checked")?"1":"0")+"&fPort="+$("#fport").val()+"&payload="+$("#bytes").val().split(" ").join(""),
+				success: function(res){
+					console.log(res);
+					alert("<%:Success!%>");
+					$("#send").attr("disabled",false);
+				}
+			});
+		});
+		$("#bytes").bind("input propertychange",function(){
+			var v = $("#bytes").val();
+			var reg = /[^0-9a-fA-F]/g;
+			var str = v.split(" ").join("");
+			str = str.replace(reg, "");
+			var arr = [];
+			arr[0] = str;
+
+			var flag = false;
+			do{
+				flag = false;
+				for( var i = 0; i < arr.length; i++ ){
+					var narr = [];
+					var v = arr[i];
+					while(v.length > 2){
+						narr.push(v.substring(0,2));
+						v = v.substring(2);
+					}
+
+					if( narr.length > 0 ){
+						narr.push(v);
+						var v_s = arr.slice(0, i);
+						var v_e = arr.slice(i+1);
+						arr = v_s.concat(narr, v_e);
+						flag = true;
+						break;
+					}
+					
+				}
+				
+			}while(flag);
+			
+			$("#bytes").val(arr.join(" ").toUpperCase())
+		})
+	})
+</script>
+<fieldset class="cbi-section">
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:Confirmed%></label>
+		<div class="cbi-value-field">
+			<input type="checkbox" class="cbi-input-checkbox" name="confirmed" id="confirmed" >
+			<i class="check-switch-i"><i></i></i>
+		</div>
+	</div>
+		
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:FPort%></label>
+		<div class="cbi-value-field">
+			<input type="number" min=1 max=254 name="fport" id="fport" >
+		</div>
+	</div>
+
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:HEX Bytes%></label>
+		<div class="cbi-value-field">
+			<input type="text" name="bytes" id="bytes" >
+		</div>
+	</div>
+	<div class="cbi-value">
+		
+		<div class="cbi-value-field">
+			<input type="button" class="cbi-button cbi-input-button" name="send" id="send" value="<%:Send%>" >
+		</div>
+	</div>
+</fieldset>

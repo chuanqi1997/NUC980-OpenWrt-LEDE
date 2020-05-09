@@ -1,0 +1,81 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-12-21 23:08+0200\n"
+"PO-Revision-Date: 2015-04-23 13:49+0800\n"
+"Last-Translator: 466005858@qq.com\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 0.0.1\n"
+
+msgid "SUB-GHZ<->Ethernet"
+msgstr "低速无线<->以太网"
+
+msgid "SUB-GHZ and Ethernet exchanged."
+msgstr "低速无线转以太网."
+
+msgid "Power Setting"
+msgstr "功率设置"
+
+
+msgid "SUB-GHZ AT Serial Configuration"
+msgstr "低速无线AT串口配置"
+
+
+msgid "SF"
+msgstr "扩频因子"
+BW
+
+msgid "BW"
+msgstr "带宽"
+
+msgid "Base Frequency (HZ)"
+msgstr "基波频率 (HZ)"
+
+msgid "Send Frequency (HZ)"
+msgstr "发送频率 (HZ)"
+
+msgid "Rec Frequency (HZ)"
+msgstr "接收频率 (HZ)"
+
+msgid "Data Rate (kbps)"
+msgstr "空中波特率 (HZ)"
+
+msgid "Data Rate (kbps)"
+msgstr "空中波特率 (kbps)"
+
+msgid "Channel Spacing (HZ)"
+msgstr "信道间隔 (HZ)"
+
+
+msgid "Channel Default"
+msgstr "缺省信道"
+
+msgid "AT CMD Serial device"
+msgstr "AT命令设备"
+
+msgid "AT Data Serial device"
+msgstr "AT数据设备"
+
+msgid "SUB-GHZ RF Configuration"
+msgstr "无线参数配置"
+
+msgid "MODEM"
+msgstr "调制解调"
+
+msgid "rfconfig"
+msgstr "低速无线配置"
+
+msgid "SUB GHZ"
+msgstr "低速无线"
+
+msgid "SUB-GHZ"
+msgstr "低速无线"
+
+msgid "sub-ghz"
+msgstr "低速无线"
+

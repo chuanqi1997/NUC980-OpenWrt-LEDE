@@ -1,0 +1,167 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2008-2014 OpenWrt.org
+
+START=99
+STOP=99
+
+USE_PROCD=1
+PROG=/usr/bin/socat
+CONFIG_NAME=net_socat
+
+validate_section_socat()
+{
+	uci_validate_section socat socat "${1}" \
+		'enabled:bool:1'
+#		'SocatOptions:string'
+	return $?
+}
+
+socat_instance()
+{
+	local SocatOptions enable
+
+
+        local source_name 
+        local target_name 
+        local source_proto 
+        local source_port 
+        local source_addr 
+        local target_proto 
+        local target_addr 
+        local target_port 
+	local enabled
+
+	config_get     source_name    $1 source_name
+	config_get     target_name    $1 target_name
+	
+        config_get     source_proto    $1 source_proto
+        config_get     source_port     $1 source_port
+        config_get     source_addr     $1 source_addr
+        config_get     source_rectime  $1 source_rectime
+	
+
+	config_get     target_proto    $1 target_proto
+        config_get     target_addr     $1 target_addr
+        config_get     target_port     $1 target_port
+	config_get     target_rectime  $1 target_rectime
+
+	config_get  enabled $1 enabled
+
+#	validate_section_socat "${1}" || {
+#		echo "validation failed"
+#		return 1
+#	}
+
+	[ "${enabled}" = "0" ] && return 1
+
+
+
+
+	echo "socat open instance"
+
+	echo "socat instance." >> /var/log/socat.log 
+	
+	local source_par target_par
+	
+	str_con="connect"
+	str_lis="listen"
+	respawn_time=""
+
+
+	if [[ `echo $source_proto | grep "${str_con}"` != "" ]]
+	then
+  		echo "source connect ${source_proto}"
+		source_par="${source_proto}:${source_addr}:${source_port}"
+		respawn_time=${source_rectime}
+	elif [[ `echo $source_proto | grep "${str_lis}"` != "" ]]  
+	then
+		source_par="${source_proto}:${source_port}"
+  		echo "source listen ${source_proto}"
+	
+	fi
+
+	
+	if [[ `echo $target_proto | grep "${str_con}"` != "" ]]
+	then
+  		echo "target connect ${target_proto}"
+		target_par="${target_proto}:${target_addr}:${target_port}"
+		respawn_time=${target_rectime}
+	
+	elif [[ `echo $target_proto | grep "${str_lis}"` != "" ]]  
+	then
+		target_par="${target_proto}:${target_port}"
+  		echo "target listen ${target_proto}"
+	fi
+	
+	
+	echo ${source_par}
+	echo ${target_par}
+
+	SocatOptions="-d -d -T 60 -lf /var/log/socat.log ${source_par} ${target_par}"
+	echo "SocatOptions : ${SocatOptions}"
+	
+	procd_open_instance
+	
+	procd_set_param command "$PROG"
+	
+	procd_append_param command ${SocatOptions}
+
+
+        echo "respawn ${respawn_threshold:-60} ${respawn_timeout:-${respawn_time}} ${respawn_retry:-4294967295} " >> /var/log/socat.log                       
+                                                                                                                                                               
+        procd_set_param respawn ${respawn_threshold:-60} ${respawn_timeout:-${respawn_time}} ${respawn_retry:-4294967295}
+
+        procd_set_param pidfile /var/run/"${CONFIG_NAME}${source_name}${target_name}".pid
+
+	procd_close_instance
+}
+
+#reload_service()
+#{
+#	stop
+#	start_service
+#}
+
+restart () {
+        	
+	echo "restart ${CONFIG_NAME} $date "                                  
+	echo "restart ${CONFIG_NAME} $date " >> /var/log/${CONFIG_NAME}.log                                     
+	stop 
+	start
+}
+start () {
+	echo "start ${CONFIG_NAME} $date "                                  
+	echo "${CONFIG_NAME} start. $date" >> /var/log/${CONFIG_NAME}.log
+	start_service
+}
+
+
+reload_service() {
+	local rv=0
+	ubus call "${CONFIG_NAME}" reload || rv=1
+	restart
+	return $rv
+}
+
+#reload()
+#{
+#	service_reload
+#	reload_service
+#	stop
+#	start_service
+#}
+   
+
+service_triggers() {
+        procd_add_reload_trigger "${CONFIG_NAME}"
+}
+stop()
+{
+	echo ""${CONFIG_NAME}" stop. $date" >> /var/log/socat.log
+	service_stop $PROG 
+}    
+
+start_service () {
+	config_load "${CONFIG_NAME}"
+	config_foreach socat_instance "${CONFIG_NAME}"
+}

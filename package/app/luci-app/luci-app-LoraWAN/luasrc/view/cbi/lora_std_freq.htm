@@ -1,0 +1,83 @@
+<% 
+local sx1301_nb = 0;
+
+self.map.uci:foreach("lora_pkt_fwd","sx1301",
+function(sec)
+	sx1301_nb = sx1301_nb + 1;
+end
+)
+
+%>
+
+
+<%+cbi/valueheader%>
+<style type="text/css">
+	#std-freq-list-div{
+		display: block;
+		width: 100%;
+		float:left;
+	}
+	#std-freq-list-div  i.fa{
+		color:red;
+		margin-left: -16px;
+		display: none;
+		cursor: pointer;
+	}
+	#std-freq-list-div > div:hover>i.fa{
+		display:inline-block
+	}
+	#std-freq-list-div>div{
+		float:left;
+	}
+
+	#std-freq-list-div > div> input{
+		border:0;
+		border-bottom:2px solid;
+		width:160px;
+		box-shadow: none;
+		transition: box-shadow 0.2s line;
+		background: transparent;
+	}
+	#std-freq-list-div > div> input.new{
+		box-shadow: 0px 0px 4px #269cd4 inset;
+	}
+</style>
+
+<div id="std-freq-list-div">
+	<%
+	local vals = self:cfgvalue(section) or {}
+	for i=1, #vals + 1 do
+	local val = vals[i]
+	if (val and #val > 0) or (i == 1) then
+	%>
+	<div>
+	<input class="cbi-input-text" value="<%=pcdata(val)%>" readonly onchange="cbi_d_update(this.id)" type="text"<%= attr("name", cbid) .. ifattr(self.size, "size") ..
+	ifattr(i == 1 and self.placeholder, "placeholder", self.placeholder)
+	%> /><i onclick="remove_std_freq(this)" class="fa fa-close"></i></div>
+	<% end end %>
+</div>
+
+<input type="number" step="0.0001" id="std-freq-new" placeholder="<%:Freq.(MHz)%>" style="width:120px">
+<select id="std-sf-new" style="width: 120px" >
+	<option value="7">SF7</option>
+	<option value="8">SF8</option>
+	<option value="9">SF9</option>
+	<option value="10">SF10</option>
+	<option value="11">SF11</option>
+	<option value="12">SF12</option>
+</select>
+<select id="std-bw-new" style="width: 120px" >
+	<option value="250">BW250</option>
+	<option value="500">BW500</option>
+</select>
+<input type="button" id="add_std_freq_btn" value="<%:Add%>" onclick="add_std_freq()">
+
+<% for s=0,sx1301_nb - 1,1 do %>
+	<input type="hidden" id="_<%=s%>_std_enable" value="0"  name="_<%=s%>_std_enable" />
+	<input type="hidden" id="_<%=s%>_std_radio"  value="0"  name="_<%=s%>_std_radio" />
+	<input type="hidden" id="_<%=s%>_std_if" 	 value="0" name="_<%=s%>_std_if" />
+	<input type="hidden" id="_<%=s%>_std_sf" 	 value="0" name="_<%=s%>_std_sf" />
+	<input type="hidden" id="_<%=s%>_std_bw" 	 value="0" name="_<%=s%>_std_bw" />
+<%end%>
+
+<%+cbi/valuefooter%>

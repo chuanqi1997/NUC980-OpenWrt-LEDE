@@ -1,0 +1,365 @@
+<%
+	local uci = require "luci.model.uci"
+	cursor=uci.cursor()
+
+	cursor:load("lora_pkt_fwd")
+	local stb=cursor:get_all("lora_pkt_fwd",self.section)
+%>
+
+<fieldset class="cbi-section" id="cbi-<%=self.config%>-<%=self.sectiontype%>">
+	
+	<legend><%=self.legend%></legend>
+	<ul class="cbi-tabmenu">
+		<script type="text/javascript">cbi_c['container.lora_pkt_fwd.<%=self.section%>.radio'] = 6;</script>
+		<li id="tab.lora_pkt_fwd.<%=self.section%>.radio" class="cbi-tab">
+			<a onclick="this.blur(); return cbi_t_switch('lora_pkt_fwd.<%=self.section%>', 'radio')" href="/cgi-bin/luci/;stok=16999c3fe44daeb84f12e9beb6a6308b/admin/lorawan?tab.lora_pkt_fwd.<%=self.section%>=radio"><%:Radio Configuration%></a>
+			<input type="hidden" id="tab.lora_pkt_fwd.<%=self.section%>" name="tab.lora_pkt_fwd.<%=self.section%>" value="radio" >
+		</li>
+	
+	</ul>
+
+	<div class="cbi-section-node cbi-section-node-tabbed" id="cbi-lora_pkt_fwd-<%=self.section%>">
+		
+		<div class="cbi-tabcontainer" id="container.lora_pkt_fwd.<%=self.section%>.radio">
+
+			<% if self.section == "sx1301_1" then -%>
+			<div class="cbi-value cbi-value-last" id="cbi-lora_pkt_fwd-sx1301_1-__toggle">
+				<label class="cbi-value-title" for="cbid.lora_pkt_fwd.sx1301_1.__toggle"><%:LoRa Concentrator 1 is enabled%></label>
+				<div class="cbi-value-field">
+					<input class="cbi-button cbi-input-apply" type="submit" name="cbid.lora_pkt_fwd.sx1301_1.__toggle" id="cbid.lora_pkt_fwd.sx1301_1.__toggle" value="<%:Disable%>">
+	
+				</div>
+			</div>
+			<%-end%>
+			<div class="cbi-value" id="cbi-lora_pkt_fwd-<%=self.section%>-radio_0_freq">
+				<label class="cbi-value-title" for="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_freq"><%:Radio 0 Center Frequency%></label>
+				<div class="cbi-value-field">
+					<input type="number" class="cbi-input-text"  name="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_freq" id="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_freq" value="<%=stb["radio_0_freq"]%>"  onchange="<%=self.section%>_radio_0_freq_change(this.value)" >
+					<script type="text/javascript">
+						function <%=self.section%>_radio_0_freq_change(freq){
+							console.log(freq);
+							for( var i = 0; i < 8 ; i++ ){
+								var pre="cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_"+i+"_";
+								var rid = document.getElementById(pre + "radio").value;
+
+								if( rid != 0)
+									continue;
+								var cif = document.getElementById(pre + "if").value;
+
+								var chan_freq = ( parseInt(freq)  + parseInt(cif) ) / 1000000.0 + "MHz";
+								document.getElementById(pre + "freq").innerHTML = chan_freq;
+							}
+
+							var lora_std_pre = "cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_";
+							if( document.getElementById(lora_std_pre + "radio").value == "0" ){
+								var lora_std_if = document.getElementById( lora_std_pre + "if").value;
+								var lora_std_freq = ( parseInt(freq) + parseInt(lora_std_if)) / 1000000.0 + "MHz";
+								document.getElementById(lora_std_pre + "freq").innerHTML = lora_std_freq;
+							}
+
+							var fsk_pre = "cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_";
+
+							if( document.getElementById(fsk_pre + "radio").value == "0"){
+								document.getElementById(fsk_pre + "freq").innerHTML = (( parseInt(freq) + parseInt(document.getElementById(fsk_pre + "if").value)) / 1000000.0 + "MHz");
+							}
+						}
+					</script>
+				</div>
+
+			</div>
+			
+			
+			<div class="cbi-value" id="cbi-lora_pkt_fwd-<%=self.section%>-radio_1_freq"><label class="cbi-value-title" for="cbid.lora_pkt_fwd.<%=self.section%>.radio_1_freq"><%:Radio 1 Center Frequency%></label>
+				<div class="cbi-value-field">
+					<input type="number" class="cbi-input-text" onchange="<%=self.section%>_radio_1_freq_change(this.value)" name="cbid.lora_pkt_fwd.<%=self.section%>.radio_1_freq" id="cbid.lora_pkt_fwd.<%=self.section%>.radio_1_freq" value="<%=stb["radio_1_freq"]%>"   >
+					<script type="text/javascript">
+						function <%=self.section%>_radio_1_freq_change(freq){
+							console.log(freq);
+							for( var i = 0; i < 8 ; i++ ){
+								var pre="cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_"+i+"_";
+								var rid = document.getElementById(pre + "radio").value;
+
+								if( rid != 1)
+									continue;
+								var cif = document.getElementById(pre + "if").value;
+
+								var chan_freq = ( parseInt(freq)  + parseInt(cif) ) / 1000000.0 + "MHz";
+								document.getElementById(pre + "freq").innerHTML = chan_freq;
+							}
+
+							var lora_std_pre = "cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_";
+							if( document.getElementById(lora_std_pre + "radio").value == "1" ){
+								var lora_std_if = document.getElementById( lora_std_pre + "if").value;;
+								var lora_std_freq = ( parseInt(freq) + parseInt(lora_std_if)) / 1000000.0 + "MHz";
+								document.getElementById(lora_std_pre + "freq").innerHTML = lora_std_freq;
+							}
+
+							var fsk_pre = "cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_";
+
+							if( document.getElementById(fsk_pre + "radio").value == "1"){
+								document.getElementById(fsk_pre + "freq").innerHTML = (( parseInt(freq) + parseInt(document.getElementById(fsk_pre + "if").value)) / 1000000.0 + "MHz");
+							}
+						}
+
+
+					</script>
+				</div>
+			</div>
+			<% if self.section == "sx1301_0" then -%>
+			<div class="cbi-value" id="cbi-lora_pkt_fwd-<%=self.section%>-radio_0_tx_freq_min">
+				<label class="cbi-value-title" for="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_tx_freq_min"><%:Minimum Tx Frequency%></label>
+				<div class="cbi-value-field">
+
+					<input type="number" class="cbi-input-text" onchange="cbi_d_update(this.id)" name="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_tx_freq_min" id="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_tx_freq_min" value="<%=stb["radio_0_tx_freq_min"]%>"  >
+	
+				</div>
+			</div>
+			<div class="cbi-value" id="cbi-lora_pkt_fwd-<%=self.section%>-radio_0_tx_freq_max">
+				<label class="cbi-value-title" for="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_tx_freq_max"><%:Maximum Tx Frequency%></label>
+				<div class="cbi-value-field">
+
+					<input type="number" class="cbi-input-text" onchange="cbi_d_update(this.id)" name="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_tx_freq_max" id="cbid.lora_pkt_fwd.<%=self.section%>.radio_0_tx_freq_max" value="<%=stb["radio_0_tx_freq_max"]%>" >
+	
+				</div>
+			</div>
+			<%-end%>
+			<div class="cbi-value" id="cbi-lora_pkt_fwd-<%=self.section%>-lorawan_public">
+				<label class="cbi-value-title" for="cbid.lora_pkt_fwd.<%=self.section%>.lorawan_public"><%:LoRaWAN Public%></label>
+				<div class="cbi-value-field">
+					<input type="hidden" value='1' name="cbi.cbe.lora_pkt_fwd.<%=self.section%>.lorawan_public">
+					<input class="cbi-input-checkbox" onclick="cbi_d_update(this.id)" onchange="cbi_d_update(this.id)" type="checkbox" id="cbid.lora_pkt_fwd.<%=self.section%>.lorawan_public" name="cbid.lora_pkt_fwd.<%=self.section%>.lorawan_public" value="1" <%if stb["lorawan_public"] == nil or stb["lorawan_public"] == '1' then -%>checked='checked'<%-end%> >
+					<i class="check-switch-i"><i></i></i>
+				</div>
+			</div>
+			<table class="cbi-section-table" >
+				<script type="text/javascript">
+					function chan_multiSF_radio_change_<%=self.section%>( idx ){
+						if( idx < 8 ){
+							var radio_id=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_' + idx + '_radio').value;
+						
+							var radio_freq=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.radio_' + radio_id + '_freq').value;
+							var offset=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_'+idx+'_if').value;
+							var freq=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_'+idx+'_freq');
+							console.log(radio_freq, offset);
+
+							freq.innerHTML = (parseInt(radio_freq) + parseInt(offset))/ 1000000.0 + "MHz";
+							return;
+						}
+						if( idx == 8 ){
+							var radio_id=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_radio').value;
+						
+							var radio_freq=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.radio_' + radio_id + '_freq').value;
+							var offset=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_if').value;
+							var freq=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_freq');
+							console.log(radio_freq, offset);
+
+							freq.innerHTML = (parseInt(radio_freq) + parseInt(offset))/ 1000000.0 + "MHz";
+							return;
+
+						}
+
+						if( idx == 9 ){
+
+							var radio_id=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_radio').value;
+						
+							var radio_freq=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.radio_' + radio_id + '_freq').value;
+							var offset=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_if').value;
+							var freq=document.getElementById('cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_freq');
+							console.log(radio_freq, offset);
+
+							freq.innerHTML = (parseInt(radio_freq) + parseInt(offset))/ 1000000.0 + "MHz";
+							return;
+						}
+					}
+				</script>
+				<tr class="cbi-section-table-descr">
+					<th>Chan. ID</th>
+				<% for i=0,7,1 do %>
+					<th class="cbi-section-table-cell" style="text-align: center">MultiSF <%=i%></th>
+				<% end %>
+					<th class="cbi-section-table-cell" style="text-align: center">
+						LoRa std
+					</th>
+					<th class="cbi-section-table-cell" style="text-align: center">
+						FSK
+					</th>
+				</tr>
+				<tr>
+					<th>Enable</th>
+					<% for i=0,7,1 do %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						
+						<input type="hidden" id="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_enable" name= "cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_enable" <% if stb["chan_multiSF_" .. i .. "_enable"] == "1" then -%> value="1" <%-else-%>value="0"<%-end%> onchange="chan_multiSF_<%=i%>_<%=self.section%>_enable(this.checked)" />
+						<i class="my-switch-i" onClick="chan_multiSF_<%=i%>_<%=self.section%>_enable()"><i></i></i>
+						<script type="text/javascript">
+							function chan_multiSF_<%=i%>_<%=self.section%>_enable(checked){
+								var checked = document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_<%=i%>_enable").value; 
+								checked = (checked == "1" ? "0" : "1");
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_<%=i%>_enable").value = checked;
+								if( checked == "1")
+									chan_multiSF_radio_change_<%=self.section%>(<%=i%>);
+								else
+									document.getElementById("cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_freq").innerHTML = "-";
+								/*
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_<%=i%>_radio").readonly = (checked == "1" ? false : true);
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_multiSF_<%=i%>_if").setAttribute("readonly", (checked == "1" ? "" : "readonly"));*/
+							}
+						</script>
+					</td>
+					<% end %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						
+						<input class="cbi-input-checkbox" type="hidden" id="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_enable" name= "cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_enable" <% if stb["chan_Lora_std_enable"] == "1" then -%> value="1" <%-else-%> value="0"<%-end%>  />
+						<i class="my-switch-i" onClick="chan_Lora_std_<%=self.section%>_enable()"><i></i></i>
+						<script type="text/javascript">
+							function chan_Lora_std_<%=self.section%>_enable(checked){
+								
+								var checked = document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_enable").value;
+								checked = checked == "1" ? "0" : "1";
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_enable").value = checked;
+								if( checked == "1")
+									chan_multiSF_radio_change_<%=self.section%>(8);
+								else
+									document.getElementById("cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_freq").innerHTML = "-";
+								/*
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_radio").disabled = !checked;
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_bandwidth").disabled = !checked;
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_spread_factor").disabled = !checked;
+								*/
+							}
+						</script>
+					</td>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						
+						<input class="cbi-input-checkbox" type="hidden" id="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_enable" name= "cbid.<%=self.config%>.<%=self.section%>.chan_FSK_enable"  <% if stb["chan_FSK_enable"] == "1" then -%> value="1"<%-else-%> value="0" <%-end%> />
+						<i class="my-switch-i" onClick="chan_FSK_<%=self.section%>_enable()"><i></i></i>
+						<script type="text/javascript">
+							function chan_FSK_<%=self.section%>_enable(checked){
+								
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_enable").value = document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_enable").value == "1"? "0" : "1";
+								if( document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_enable").value == "1")
+									chan_multiSF_radio_change_<%=self.section%>(9);
+								else
+									document.getElementById("cbid.<%=self.config%>.<%=self.section%>.chan_FSK_freq").innerHTML = "-";
+								/*
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_radio").disabled = !checked;
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_bandwidth").disabled = !checked;
+								document.getElementById("cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_datarate").disabled = !checked;
+								*/
+							}
+						</script>
+					</td>
+				</tr>
+				<tr>
+					<th>Radio</th>
+					<% for i=0,7,1 do %>
+					<td class="cbi-section-table-cell" style="text-align: center">			
+						<select class="cbi-input-section" id="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_radio" name="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_radio" onchange="chan_multiSF_radio_change_<%=self.section%>(<%=i%>)">
+
+							<option value="0" <% if stb["chan_multiSF_" .. i .."_radio"] == "0" then -%> selected <%-end%> >Radio 0</option>
+							<option value="1" <% if stb["chan_multiSF_" .. i .."_radio"] == "1" then -%> selected <%-end%> >Radio 1</option>
+						</select>
+					</td>
+					<% end %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						
+						<select class="cbi-input-section" id="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_radio" name="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_radio" onchange="chan_multiSF_radio_change_<%=self.section%>(8)"  >
+
+							<option value="0" <% if stb["chan_Lora_std_radio"] == "0" then -%> selected <%-end%> >Radio 0</option>
+							<option value="1" <% if stb["chan_Lora_std_radio"] == "1" then -%> selected <%-end%> >Radio 1</option>
+						</select>
+					</td>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						
+						<select class="cbi-input-section" id="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_radio" name="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_radio" onchange="chan_multiSF_radio_change_<%=self.section%>(9)"  >
+
+							<option value="0" <% if stb["chan_FSK_radio"] == "0" then -%> selected <%-end%> >Radio 0</option>
+							<option value="1" <% if stb["chan_FSK_radio"] == "1" then -%> selected <%-end%> >Radio 1</option>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<th>If</th>
+					<% for i=0,7,1 do %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<input type="number" style="width:75px" class="cbi-input-text"  id="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_if" name="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_if" onkeyup="chan_multiSF_radio_change_<%=self.section%>(<%=i%>)" value="<%=stb["chan_multiSF_" .. i .. "_if"]%>"  />
+					</td>
+					<% end %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<input type="number" style="width: 75px" class="cbi-input-text" id="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_if" name= "cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_if" value="<%=stb["chan_Lora_std_if"]%>" onkeyup="chan_multiSF_radio_change_<%=self.section%>(8)">
+						
+					</td>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<input type="number" style="width: 75px" class="cbi-input-text" id="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_if" name= "cbid.<%=self.config%>.<%=self.section%>.chan_FSK_if" value="<%=stb["chan_FSK_if"]%>" onkeyup="chan_multiSF_radio_change_<%=self.section%>(9)">
+						
+					</td>
+				</tr>
+				<tr>
+					<th>Freq.</th>
+					<% for i=0,7,1 do %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<strong id="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_freq"><% if stb["chan_multiSF_" .. i .. "_enable" ] == '1' then -%><%=(stb["radio_" .. stb["chan_multiSF_" .. i .. "_radio"] .. "_freq"] + stb["chan_multiSF_" .. i .. "_if"]) / 1000000.0 %>MHz<%-else-%>-<%-end%></strong>
+						
+					</td>
+					<% end %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<strong id="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_freq"><%=stb["chan_Lora_std_enable"] == "1" and (stb["radio_" .. stb["chan_Lora_std_radio"] .. "_freq"] + stb["chan_Lora_std_if"]) / 1000000.0 %><%=stb["chan_Lora_std_enable"] == "1" and "MHz" or "-"%></strong>
+					</td>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<strong id="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_freq"><%=stb["chan_FSK_enable"] == "1" and (stb["radio_" .. stb["chan_FSK_radio"] .. "_freq"] + stb["chan_FSK_if"]) / 1000000.0 %><%=stb["chan_FSK_enable"] == "1" and "MHz" or "-"%></strong>
+					</td>
+				</tr>
+				<tr>
+					<th>Bandwidth</th>
+					<% for i=0,7,1 do %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<span id="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_bandwidth">125 KHz</span>
+						
+					</td>
+					<% end %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<select id="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_bandwidth" name="cbid.<%=self.config%>.<%=self.section%>.chan_Lora_std_bandwidth"   >
+							<option value="125000" <%if stb["chan_Lora_std_bandwidth"] == "125000" then -%> selected <%-end%> >125 KHz</option>
+							<option value="250000" <%if stb["chan_Lora_std_bandwidth"] == "250000" then -%> selected <%-end%> >250 KHz</option>
+							<option value="500000" <%if stb["chan_Lora_std_bandwidth"] == "500000" then -%> selected <%-end%> >500 KHz</option>
+						</select>
+					</td>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<select id="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_bandwidth" name="cbid.<%=self.config%>.<%=self.section%>.chan_FSK_bandwidth"  >
+							<option value="7800" <%if stb["chan_FSK_bandwidth"] == "7800" then -%> selected <%-end%> >7.8 KHz</option>
+							<option value="15600" <%if stb["chan_FSK_bandwidth"] == "15600" then -%> selected <%-end%> >15.6 KHz</option>
+							<option value="31200" <%if stb["chan_FSK_bandwidth"] == "31200" then -%> selected <%-end%> >31.2 KHz</option>
+							<option value="62500" <%if stb["chan_FSK_bandwidth"] == "62500" then -%> selected <%-end%> >62.5 KHz</option>
+							<option value="125000" <%if stb["chan_FSK_bandwidth"] == "125000" then -%> selected <%-end%> >125 KHz</option>
+							<option value="250000" <%if stb["chan_FSK_bandwidth"] == "250000" then -%> selected <%-end%> >250 KHz</option>
+							<option value="500000" <%if stb["chan_FSK_bandwidth"] == "500000" then -%> selected <%-end%> >500 KHz</option>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<th>DataRate</th>
+					<% for i=0,7,1 do %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<span id="cbid.<%=self.config%>.<%=self.section%>.chan_multiSF_<%=i%>_freq">All SF</span>
+						
+					</td>
+					<% end %>
+					<td class="cbi-section-table-cell" style="text-align: center">
+						<select id="cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_spread_factor" name="cbid.lora_pkt_fwd.<%=self.section%>.chan_Lora_std_spread_factor"   >
+							<% for j=7,12,1 do -%>
+								<option value="<%=j%>" <% if stb["chan_Lora_std_spread_factor"] == ("" .. j ) then -%> selected<%-end%> >SF<%=j%></option>
+							<%-end%>
+						</select>
+					</td>
+					<td style="text-align: center">
+						<input type="number" class="cbi-input-text" style="width:72px" id="cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_datarate" name="cbid.lora_pkt_fwd.<%=self.section%>.chan_FSK_datarate"class="cbi-input-text" min=500 max=250000 value="<%=stb["chan_FSK_datarate"]%>"   >
+					</td>
+				</tr>
+			</table>
+		</div>
+		<script type="text/javascript">cbi_t_add('lora_pkt_fwd.<%=self.section%>', 'radio')</script>
+		
+	</div>
+
+	
+</fieldset>

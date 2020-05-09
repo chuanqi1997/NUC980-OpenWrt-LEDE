@@ -1,0 +1,7 @@
+<%+cbi/valueheader%>
+<select class="cbi-input-select" onchange="cbi_d_update(this.id)"<%= attr("id", cbid) .. attr("name", cbid) .. ifattr(self.size, "size") %>>
+<% for i, key in pairs(self.keylist) do -%>
+	<option id="cbi-<%=self.config.."-"..section.."-"..self.option.."-"..key%>"<%= attr("value", key) .. ifattr(tostring(self:cfgvalue(section) or self.default) == key, "selected", "selected") %>><%=striptags(self.vallist[i])%></option>
+<%- end %>
+</select>
+<%+cbi/valuefooter%>

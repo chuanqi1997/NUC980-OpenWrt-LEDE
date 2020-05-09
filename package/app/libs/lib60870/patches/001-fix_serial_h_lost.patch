@@ -1,0 +1,12 @@
+--- a/src/hal/serial/linux/serial_port_linux.c	2019-10-25 08:54:21.000000000 -0700
++++ b/src/hal/serial/linux/serial_port_linux.c	2020-01-10 04:18:18.510183000 -0800
+@@ -29,7 +29,8 @@
+ #include <termios.h>
+ #include <fcntl.h>
+ #include <unistd.h>
+-
++#include <sys/time.h>
++#include <sys/select.h>
+ #include "hal_serial.h"
+ #include "hal_time.h"
+ 

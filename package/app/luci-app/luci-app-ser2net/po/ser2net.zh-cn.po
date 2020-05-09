@@ -1,0 +1,112 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-12-21 23:08+0200\n"
+"PO-Revision-Date: 2015-04-23 13:49+0800\n"
+"Last-Translator: 466005858@qq.com\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 1.7.5\n"
+
+
+#serial_socat
+msgid "serial_socat"
+msgstr "串口透传"
+
+msgid "Serial to Net"
+msgstr "串口透传"
+
+msgid "Serial device"
+msgstr "串口设备"
+
+msgid "Serial <-> Network Forward Table"
+msgstr "串口 <-> 网络 转发表"
+
+
+msgid "Rule is enabled"
+msgstr "规则已启用"
+
+msgid "Rule is enabled"
+msgstr "规则已禁用"
+
+msgid "Serial<->Networking"
+msgstr "串口数据<->网络数据"
+
+msgid "Serial data and network data exchanged."
+msgstr "串口数据和网络数据交换."
+
+msgid "Basic Configuration"
+msgstr "基础配置"
+
+msgid "Log Enable"
+msgstr "记录日志"
+
+msgid "Forward Name"
+msgstr "转发名称"
+
+msgid "Data Max Wait Time(S)"
+msgstr "数据最大等待时间(秒)"
+
+msgid "Serial Configuration"
+msgstr "串口参数配置"
+
+msgid "Network Arguments"
+msgstr "网络参数"
+
+msgid "Serial Arguments"
+msgstr "串口参数"
+
+msgid "Baudrate"
+msgstr "波特率"
+
+msgid "Baudrate (bps)"
+msgstr "波特率(bps)"
+
+msgid "Databit"
+msgstr "数据位"
+
+msgid "Check"
+msgstr "校验"
+
+msgid "Odd-Even Check"
+msgstr "奇偶校验"
+
+msgid "None Check"
+msgstr "无校验"
+
+msgid "Odd Check"
+msgstr "奇校验"
+
+msgid "Even Check"
+msgstr "偶校验"
+
+msgid "Stopbit"
+msgstr "停止位"
+
+msgid "Networking Configuration"
+msgstr "网络参数配置"
+
+msgid "Net Mode"
+msgstr "网络模式"
+
+msgid "Server Address"
+msgstr "服务地址"
+
+msgid "Server Port"
+msgstr "服务端口"
+
+msgid "Net Protocol"
+msgstr "网络协议"
+
+msgid "Local Used Port"
+msgstr "本机使用端口"
+
+msgid "Re Connect Time(S)"
+msgstr "离线重连时间(秒)"
+
+
+

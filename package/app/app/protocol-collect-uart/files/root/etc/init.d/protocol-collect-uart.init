@@ -1,0 +1,66 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2008-2014 OpenWrt.org
+
+START=110
+STOP=110
+
+USE_PROCD=1
+PROG=/usr/sbin/protocol-collect-uart.py
+CONFIG_NAME=protocol-collect-uart
+collect_instance()
+{
+	local Options
+	local enabled
+	local serial
+	local device_detail
+
+	config_get  device_detail	$1	device_detail
+	config_get  enabled	$1	enabled
+	config_get  serial	$1	serial
+
+	[ "${enabled}" = "0" ] && return 1
+
+	if [ ! -c $serial ]; then
+			echo "$serial is Not found "
+			echo "$serial is Not found "  >> /var/log/${CONFIG_NAME}.log
+			return 1
+		else 
+			echo "$serial is existed"
+			echo "$serial is existed"  >> /var/log/${CONFIG_NAME}.log
+	fi
+
+
+	Options="${serial} ${device_detail}"
+	procd_open_instance
+	procd_set_param command "$PROG"
+	procd_append_param command ${Options}
+	procd_close_instance
+}
+start () {
+	echo "${CONFIG_NAME} start. $date"
+	echo "${CONFIG_NAME} start. $date" >> /var/log/${CONFIG_NAME}.log    
+	start_service
+}
+stop()
+{
+	echo "${CONFIG_NAME} stop. $date"
+	echo "${CONFIG_NAME} stop. $date" >> /var/log/${CONFIG_NAME}.log
+	service_stop $PROG 
+}
+restart () {
+	echo "restart ${CONFIG_NAME} $date "
+        echo "restart ${CONFIG_NAME} $date " >> /var/log/${CONFIG_NAME}.log                                     
+	stop 
+	start
+}
+reload_service() {
+	local rv=0
+	ubus call "${CONFIG_NAME}" reload || rv=1
+	restart
+	return $rv
+}
+start_service () {
+	echo "start_service ${CONFIG_NAME} $date "
+	config_load "${CONFIG_NAME}"
+	config_foreach collect_instance device
+}

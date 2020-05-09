@@ -1,0 +1,84 @@
+<%+cbi/valueheader%>
+<% 
+	local devman = require "devman" 
+	local vendor=devman.sys.vendor()
+	local band=devman.sys.band()
+%>
+<script type="text/javascript">
+	function import_freq_plan(){
+		if( "None" == document.getElementById("__freq_plan_select").value ){
+
+
+			alert("<%:Please select a frequency plan!%>");
+			return;
+		}
+
+		location="<%=luci.dispatcher.build_url("admin","lorawan","freq_plan")%>" + "/" + document.getElementById("__freq_plan_select").value;
+	}
+</script>
+<select id="__freq_plan_select">
+		<option value="None">--Select Frequency Plan--</option>
+<% 
+	if vendor == "LINKWAN" then 	
+		if string.find(band, "923") or string.find(band, "915") or string.find(band, "920") or string.find(band, "902") or string.find(band, "928") then 
+%>
+		<option value="AS923_ALI">AS923</option>
+<%
+		end
+		if string.find(band, "470") or string.find(band, "510") then 
+%>
+		<option value="CN470_ALI">CN470</option>
+<%
+		end
+	 end
+	 if vendor == "IOTBOX" then 
+	 	if string.find(band, "923") or string.find(band, "915") or string.find(band, "920") or string.find(band, "902") or string.find(band, "928") then -%>
+	<option value="US915" >US902-928</option>
+	<%
+		end
+	 	if string.find(band, "868") or string.find(band, "865") or string.find(band, "867") or string.find(band, "870") or string.find(band, "863") then 
+	 %>
+	<option value="EU868">EU863-870</option>
+	<%
+		end
+	end
+	if vendor == "QTECH" then 
+	%>
+	<option value="RU868">RU864-870</option>
+	<% 
+	end 
+	if vendor == "RAK" then
+	 	if string.find(band, "923") or string.find(band, "915") or string.find(band, "920") or string.find(band, "902") or string.find(band, "928") then 
+	 %>
+		<option value="AS920_923">AS920-923</option>
+		<option value="AS923_925">AS923-925</option>
+		<option value="US915" >US902-928</option>
+		<option value="AU915">AU915-928</option>
+		<option value="KR920">KR920-923</option>
+	<%
+		end
+	 	if string.find(band, "868") or string.find(band, "865") or string.find(band, "867") or string.find(band, "870") or string.find(band, "863") then 
+	 %>
+	<option value="EU868">EU863-870</option>
+	<option value="IN865">IN865-867</option>
+	<option value="RU868">RU864-870</option>
+	<%
+		end
+
+	 	if string.find(band, "470") or string.find(band, "510") then 
+	 %>
+		<option value="CN470">CN470-510</option>
+	<%
+		end
+	 	if string.find(band, "433") then 
+	 %>
+		<option value="EU433">EU433</option>
+	<% 
+		end
+	end 
+	%>
+</select>
+
+<input type="button" class="cbi-button cbi-button-apply" value="<%:Import%>" onclick="import_freq_plan()">
+
+<%+cbi/valuefooter%>

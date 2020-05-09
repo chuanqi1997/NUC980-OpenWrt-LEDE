@@ -1,0 +1,34 @@
+#!/bin/sh
+
+. /lib/functions/uci-defaults.sh
+. /lib/nuc980.sh
+
+set_usb_led() {
+	ucidef_set_led_usbdev "usb" "USB" "${1}" "${2:-1-1}"
+}
+
+set_wifi_led() {
+	ucidef_set_led_netdev "wifi_led" "wifi" "${1}" "${2:-wlan0}"
+}
+
+
+board=$(nuc980_board_name)
+
+board_config_update
+
+case $board in
+
+NUC980-IOT-GateWay)
+	#ucidef_set_led_default "system" "power" "$board:green:power" "1"
+	ucidef_set_led_timer "system" "power" "nuc980:green:power" "1000" "1000"
+	#ucidef_set_led_netdev "eth" "ETH" "nuc980:green:lan" "eth0"
+	ucidef_set_led_netdev "eth" "eth0" "nuc980:green:lan" "eth0"
+	#set_wifi_led "$board:green:wlan"
+	#set_usb_led "$board:green:4g"
+	;;
+
+esac
+
+board_config_flush
+
+exit 0

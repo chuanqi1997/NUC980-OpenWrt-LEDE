@@ -1,0 +1,12 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@net_socat[-1]
+	add ucitrack net_socat
+        set ucitrack.@net_socat[-1].init=net_socat
+#        add_list ucitrack.@sub-ghz[0].init=sub-ghz
+	commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0

@@ -1,0 +1,210 @@
+<%
+	local dsp = require "luci.dispatcher"
+	local uci = require "luci.model.uci".cursor()
+	local http = require "luci.http"
+	local app = http.formvalue("app")
+	
+%>
+<%+header%>
+<h2>Batch add device to <%=uci:get("lorasrv",app,"name")%></h2>
+<style type="text/css">
+	.cbi-value-field>input.error{
+		border-color: red;
+	}
+</style>
+<script type="text/javascript">
+	function add(){
+		var flag = true;
+		var mode = $("#act").val();
+		var eui_reg = /^[a-fA-F0-9]{16}$/;
+		var key_reg = /^[a-fA-F0-9]{32}$/;
+		var addr_reg = /^[a-fA-F0-9]{8}$/;
+		var obj = {
+			mode : mode,
+			appskey : $("#appskey").val(),
+			nwkskey : $("#nwkskey").val()
+		};
+		var table = [];
+
+		var s_eui = $("#start").val();
+		if( !eui_reg.test(s_eui)){
+			$("#start").addClass("error");
+			flag = false;
+			return false;
+		}
+
+
+		var oui = s_eui.substr(0,6);
+		
+		console.log(oui);
+		var eid = s_eui.substr(6, 10);
+		console.log(eid);
+
+		var step=parseInt($("#step").val());
+		if( step == 0){
+			return false;
+		}
+		var count = parseInt($("#count").val());
+		if( count == 0){
+			return false;
+		}
+
+		var neid = parseInt(eid,16);
+
+		var s_addr = $("#addr_start").val();
+		if( mode =='abp' && !addr_reg.test(s_addr)){
+			$("#addr_start").addClass("error");
+			return false;
+		}
+
+		var e_addr = parseInt(s_addr.substr(2, 6), 16);
+		var n_id = s_addr.substr(0,2);
+		
+		for( var i = 0; i < count; i++ ){
+			var teid = (neid + i*step).toString(16);
+
+			while( teid.length < 10 ){
+				teid = "0" + teid;
+			}
+
+			if( mode == 'abp'){
+				var t_addr = (e_addr + i*step).toString(16);
+				while( t_addr.length < 6 ){
+					t_addr = "0" + t_addr;
+				}
+
+				table.push({dev_eui : oui + teid, dev_addr : n_id + t_addr});
+			}
+			else{
+				table.push({dev_eui : oui + teid})
+			}
+			
+		}
+		
+		obj.table = table;
+
+		$("#devs").val(JSON.stringify(obj));
+		return flag;
+	}
+
+	function _generate_key(id){
+		var KEY = "";
+		for( var i = 0 ; i < 16; i++ ){
+			var r = Math.round(Math.random()*1000)%255;
+			var byte = r.toString(16,2);
+			if( byte.length == 1){
+				byte = "0" + byte;
+			}
+			KEY += byte;
+		}
+		
+		document.getElementById(id).value = KEY;
+	}
+	function ___copy(id){
+		document.getElementById(id).select();
+		document.execCommand("Copy");
+
+	}
+
+	$(document).ready(function(){
+		var m = $("#act").val();
+		if( m == "abp"){
+			$(".abp").show();
+			$(".otaa").hide();
+		}
+		else{
+			$(".otaa").show();
+			$(".abp").hide();
+		}
+		$("#act").change(function(){
+			var m = $("#act").val();
+			if( m == "abp"){
+				$(".abp").show();
+				$(".otaa").hide();
+			}
+			else{
+				$(".otaa").show();
+				$(".abp").hide();
+			}
+			
+		});
+	});
+</script>
+<form action="<%=REQUEST_URI%>?app=<%=app%>" method="post" onsubmit="return add();">
+<fieldset class="cbi-section">
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:Join Mode%></label>
+		<div class="cbi-value-field">
+			<select id="act">
+				<option value="otaa">OTAA</option>
+				<option value="abp" >ABP</option>
+			</select>
+		</div>
+	</div>
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:Class%></label>
+		<div class="cbi-value-field">
+			<select id="Class" name='Class'>
+				<option value="A">Class A</option>
+				<option value="C" >Class C</option>
+			</select>
+		</div>
+	</div>
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:Start Device EUI%></label>
+		<div class="cbi-value-field">
+			<input type="text" name="start" id="start" >
+		</div>
+	</div>
+	
+	<div class="cbi-value abp">
+		<label  class="cbi-value-title"><%:Start Device Address%></label>
+		<div class="cbi-value-field">
+			<input type="text" name="addr_start"  id="addr_start" >
+		</div>
+	</div>
+
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:Step%></label>
+		<div class="cbi-value-field">
+			<input type="number" min=1 max=500 name="step" id="step" >
+		</div>
+	</div>
+
+	<div class="cbi-value">
+		<label  class="cbi-value-title"><%:Count%></label>
+		<div class="cbi-value-field">
+			<input type="number" name="count"  min="1" max="64" id="count" >
+		</div>
+	</div>
+
+
+	<div class="cbi-value abp">
+		<label  class="cbi-value-title"><%:Application Session Key%></label>
+		<div class="cbi-value-field">
+			<input type="text" id="appskey"  name="appskey"  >
+			<img src="<%=resource%>/cbi/reload.gif" style="vertical-align:middle" title="<%:Generate Key%>" onclick="_generate_key('appskey')" />
+			<img src="<%=resource%>/cbi/file.gif" style="vertical-align:middle" title="<%:Copy%>" onclick="___copy('appskey')" />
+		</div>
+	</div>
+	<div class="cbi-value abp">
+		<label  class="cbi-value-title"><%:Network Session Key%></label>
+		<div class="cbi-value-field">
+			<input type="text" id="nwkskey"  name="nwkskey" >
+			<img src="<%=resource%>/cbi/reload.gif" style="vertical-align:middle" title="<%:Generate Key%>" onclick="_generate_key('nwkskey')" />
+			<img src="<%=resource%>/cbi/file.gif" style="vertical-align:middle" title="<%:Copy%>" onclick="___copy('nwkskey')" />
+		</div>
+	</div>
+</fieldset>
+<div class="cbi-page-actions">
+		
+		<div style="float:left">
+			<input class="cbi-button cbi-button-link" type="button" value="<%:Back to Overview%>" onclick="location.href='<%=dsp.build_url("admin","loraserver","app","edit",app)%>'">
+		</div>
+		<input type="hidden" name="devs" id="devs" />
+		<input type="hidden" name="oui" id="oui" />
+		<input class="cbi-button cbi-button-save" type="submit" value="<%:Submit%>" >
+	</div>
+
+</form>
+<%+footer%>

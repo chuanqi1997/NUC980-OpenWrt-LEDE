@@ -1,0 +1,18 @@
+config serial_socat
+#	option DataWaitTime '30'
+	option protocol 'tcp-connect'
+	option serial '/dev/ttyS1'
+	option databit 'CS8'
+#	option ReDialTime '15'
+	option forward_name 'RS232<->Ethernet'
+	option stopbit '0'
+	option enabled '0'
+	option MaxWaitTime '120'
+	option baudrate 'B9600'
+	option parity_check 'NONE'
+	option ReConnectTime '10'
+	option server_port '8000'
+	option server_addr '192.168.1.205'
+	option socat_log_enable '0'
+
+

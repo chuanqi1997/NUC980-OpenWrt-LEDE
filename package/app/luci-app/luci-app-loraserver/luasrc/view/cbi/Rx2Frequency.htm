@@ -1,0 +1,52 @@
+<%+cbi/valueheader%>
+	<script type="text/javascript">
+		var CN470_RX2_FREQ = 505300000
+		var CN470_RX2_DR = 0
+
+		var AS923_RX2_FREQ = 923200000
+		var AS923_RX2_DR = 2
+
+		var AU915_RX2_FREQ = 923300000
+		var AU915_RX2_DR = 8
+
+		var EU433_RX2_FREQ = 434665000
+		var EU433_RX2_DR = 0
+
+		var EU868_RX2_FREQ = 869525000
+		var EU868_RX2_DR = 0
+
+		var IN865_RX2_FREQ = 866550000
+		var IN865_RX2_DR = 2
+
+		var KR920_RX2_FREQ = 921900000
+		var KR920_RX2_DR = 0
+
+		var US915_RX2_FREQ = 923300000
+		var US915_RX2_DR = 8
+
+		var RU864_RX2_FREQ = 869100000
+		var RU864_RX2_DR = 0
+		
+		$(document).ready(function(){
+			var regObj = $("#cbid\\.lorasrv\\.lorasrv\\.band");
+			var Rx2FreqObj = $("#cbid\\.lorasrv\\.lorasrv\\.Rx2Frequency")
+
+			var region = regObj.val();
+			if( Rx2FreqObj.val() == '0'){
+				Rx2FreqObj.val(eval(region+"_RX2_FREQ"));
+			}
+			regObj.change(function(){
+				Rx2FreqObj.val(eval(regObj.val()+"_RX2_FREQ"));
+			});
+		});
+
+		
+
+
+	</script>
+	<input type="<%=self.password and 'password" class="cbi-input-password' or 'text" class="cbi-input-text' %>" onchange="cbi_d_update(this.id)"<%=
+		attr("name", cbid) .. attr("id", cbid) .. attr("value", self:cfgvalue(section) or self.default) ..
+		ifattr(self.size, "size") .. ifattr(self.placeholder, "placeholder")
+	%> />
+	
+<%+cbi/valuefooter%>

@@ -1,0 +1,316 @@
+diff -uprN linux-4.4.194/include/linux/mtd/nand.h NUC980-linux-4.4.194/include/linux/mtd/nand.h
+--- linux-4.4.194/include/linux/mtd/nand.h	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.194/include/linux/mtd/nand.h	2019-12-29 19:12:21.000000000 -0800
+@@ -35,7 +35,7 @@ extern int nand_scan(struct mtd_info *mt
+  * and override command or ECC setup according to flash type.
+  */
+ extern int nand_scan_ident(struct mtd_info *mtd, int max_chips,
+-			   struct nand_flash_dev *table);
++                           struct nand_flash_dev *table);
+ extern int nand_scan_tail(struct mtd_info *mtd);
+ 
+ /* Free resources held by the NAND device */
+@@ -498,29 +498,29 @@ struct nand_ecc_ctrl {
+ 	void *priv;
+ 	void (*hwctl)(struct mtd_info *mtd, int mode);
+ 	int (*calculate)(struct mtd_info *mtd, const uint8_t *dat,
+-			uint8_t *ecc_code);
++	                 uint8_t *ecc_code);
+ 	int (*correct)(struct mtd_info *mtd, uint8_t *dat, uint8_t *read_ecc,
+-			uint8_t *calc_ecc);
++	               uint8_t *calc_ecc);
+ 	int (*read_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,
+-			uint8_t *buf, int oob_required, int page);
++	                     uint8_t *buf, int oob_required, int page);
+ 	int (*write_page_raw)(struct mtd_info *mtd, struct nand_chip *chip,
+-			const uint8_t *buf, int oob_required, int page);
++	                      const uint8_t *buf, int oob_required, int page);
+ 	int (*read_page)(struct mtd_info *mtd, struct nand_chip *chip,
+-			uint8_t *buf, int oob_required, int page);
++	                 uint8_t *buf, int oob_required, int page);
+ 	int (*read_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
+-			uint32_t offs, uint32_t len, uint8_t *buf, int page);
++	                    uint32_t offs, uint32_t len, uint8_t *buf, int page);
+ 	int (*write_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
+-			uint32_t offset, uint32_t data_len,
+-			const uint8_t *data_buf, int oob_required, int page);
++	                     uint32_t offset, uint32_t data_len,
++	                     const uint8_t *data_buf, int oob_required, int page);
+ 	int (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
+-			const uint8_t *buf, int oob_required, int page);
++	                  const uint8_t *buf, int oob_required, int page);
+ 	int (*write_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
+-			int page);
++	                     int page);
+ 	int (*read_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
+-			int page);
++	                    int page);
+ 	int (*read_oob)(struct mtd_info *mtd, struct nand_chip *chip, int page);
+ 	int (*write_oob)(struct mtd_info *mtd, struct nand_chip *chip,
+-			int page);
++	                 int page);
+ };
+ 
+ /**
+@@ -656,19 +656,19 @@ struct nand_chip {
+ 	void (*cmd_ctrl)(struct mtd_info *mtd, int dat, unsigned int ctrl);
+ 	int (*dev_ready)(struct mtd_info *mtd);
+ 	void (*cmdfunc)(struct mtd_info *mtd, unsigned command, int column,
+-			int page_addr);
++	                int page_addr);
+ 	int(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
+ 	int (*erase)(struct mtd_info *mtd, int page);
+ 	int (*scan_bbt)(struct mtd_info *mtd);
+ 	int (*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state,
+-			int status, int page);
++	               int status, int page);
+ 	int (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
+-			uint32_t offset, int data_len, const uint8_t *buf,
+-			int oob_required, int page, int cached, int raw);
++	                  uint32_t offset, int data_len, const uint8_t *buf,
++	                  int oob_required, int page, int cached, int raw);
+ 	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
+-			int feature_addr, uint8_t *subfeature_para);
++	                         int feature_addr, uint8_t *subfeature_para);
+ 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
+-			int feature_addr, uint8_t *subfeature_para);
++	                         int feature_addr, uint8_t *subfeature_para);
+ 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
+ 
+ 	int chip_delay;
+@@ -736,6 +736,10 @@ struct nand_chip {
+ #define NAND_MFR_SANDISK	0x45
+ #define NAND_MFR_INTEL		0x89
+ #define NAND_MFR_ATO		0x9b
++#define NAND_MFR_WINBOND	0xef
++#define NAND_MFR_GIGA           0xc8
++#define NAND_MFR_XTX            0x0b
++#define NAND_MFR_MK             0xd5
+ 
+ /* The maximum expected count of bytes in the NAND ID sequence */
+ #define NAND_MAX_ID_LEN 8
+@@ -837,9 +841,9 @@ extern int nand_markbad_bbt(struct mtd_i
+ extern int nand_isreserved_bbt(struct mtd_info *mtd, loff_t offs);
+ extern int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt);
+ extern int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
+-			   int allowbbt);
++                           int allowbbt);
+ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
+-			size_t *retlen, uint8_t *buf);
++                        size_t *retlen, uint8_t *buf);
+ 
+ /**
+  * struct platform_nand_chip - chip level device structure
+@@ -909,8 +913,7 @@ struct platform_nand_data {
+ 
+ /* Some helpers to access the data structures */
+ static inline
+-struct platform_nand_chip *get_platform_nandchip(struct mtd_info *mtd)
+-{
++struct platform_nand_chip *get_platform_nandchip(struct mtd_info *mtd) {
+ 	struct nand_chip *chip = mtd->priv;
+ 
+ 	return chip->priv;
+@@ -970,7 +973,7 @@ static inline int nand_opcode_8bits(unsi
+ static inline int jedec_feature(struct nand_chip *chip)
+ {
+ 	return chip->jedec_version ? le16_to_cpu(chip->jedec_params.features)
+-		: 0;
++	       : 0;
+ }
+ 
+ /*
+@@ -1026,7 +1029,7 @@ struct nand_sdr_timings {
+ const struct nand_sdr_timings *onfi_async_timing_mode_to_sdr_timings(int mode);
+ 
+ int nand_check_erased_ecc_chunk(void *data, int datalen,
+-				void *ecc, int ecclen,
+-				void *extraoob, int extraooblen,
+-				int threshold);
++                                void *ecc, int ecclen,
++                                void *extraoob, int extraooblen,
++                                int threshold);
+ #endif /* __LINUX_MTD_NAND_H */
+diff -uprN linux-4.4.194/include/linux/platform_data/dma-nuc980.h NUC980-linux-4.4.194/include/linux/platform_data/dma-nuc980.h
+--- linux-4.4.194/include/linux/platform_data/dma-nuc980.h	1969-12-31 16:00:00.000000000 -0800
++++ NUC980-linux-4.4.194/include/linux/platform_data/dma-nuc980.h	2019-12-29 19:12:21.000000000 -0800
+@@ -0,0 +1,93 @@
++#ifndef __ASM_ARCH_DMA_H
++#define __ASM_ARCH_DMA_H
++
++#include <linux/types.h>
++#include <linux/dmaengine.h>
++#include <linux/dma-mapping.h>
++
++/**
++ * struct nuc980_dma_data - configuration data for the NUC980 dmaengine
++ * @port: peripheral which is requesting the channel
++ * @direction: TX/RX channel
++ * @name: optional name for the channel, this is displayed in /proc/interrupts
++ *
++ * This information is passed as private channel parameter in a filter
++ * function. Note that this is only needed for slave/cyclic channels.  For
++ * memcpy channels %NULL data should be passed.
++ */
++struct nuc980_dma_data {
++	int             port;
++	enum dma_transfer_direction direction;
++	const char          *name;
++};
++
++struct nuc980_dma_done {
++	int 		    ch;
++	u32            base_addr;
++	bool            done;
++	int             timeout;
++	int             remain;
++	void            *callback_param;
++};
++
++struct nuc980_ip_rx_dma {
++	struct dma_chan         *chan_rx;
++	struct scatterlist      sgrx[2];
++	struct dma_async_tx_descriptor  *rxdesc;
++	struct dma_slave_config slave_config;
++};
++
++struct nuc980_ip_tx_dma {
++	struct dma_chan         *chan_tx;
++	struct scatterlist      sgtx[2];
++	struct dma_async_tx_descriptor  *txdesc;
++	struct dma_slave_config slave_config;
++};
++
++struct nuc980_mem_alloc {
++	int     size;
++	unsigned int    vir_addr;
++	unsigned int    phy_addr;
++};
++
++struct nuc980_mem_dma_param {
++	int     size;
++	unsigned int    src_addr;
++	unsigned int    dst_addr;
++	int     cfg;
++};
++
++struct nuc980_dma_config {
++	u32 timeout_prescaler;
++	u32 timeout_counter;
++	u32 en_sc;
++	u32 reqsel;
++};
++
++/**
++ * struct nuc980_dma_chan_data - platform specific data for a DMA channel
++ * @name: name of the channel, used for getting the right clock for the channel
++ * @base: mapped registers
++ * @irq: interrupt number used by this channel
++ */
++struct nuc980_dma_chan_data {
++	const char          *name;
++	void __iomem            *base;
++	int             irq;
++};
++
++/**
++ * struct nuc980_dma_platform_data - platform data for the dmaengine driver
++ * @channels: array of channels which are passed to the driver
++ * @num_channels: number of channels in the array
++ *
++ * This structure is passed to the DMA engine driver via platform data. For
++ * M2P channels, contract is that even channels are for TX and odd for RX.
++ * There is no requirement for the M2M channels.
++ */
++struct nuc980_dma_platform_data {
++	struct nuc980_dma_chan_data *channels;
++	size_t              num_channels;
++};
++
++#endif /* __ASM_ARCH_DMA_H */
+diff -uprN linux-4.4.194/include/linux/platform_data/i2c-nuc980.h NUC980-linux-4.4.194/include/linux/platform_data/i2c-nuc980.h
+--- linux-4.4.194/include/linux/platform_data/i2c-nuc980.h	1969-12-31 16:00:00.000000000 -0800
++++ NUC980-linux-4.4.194/include/linux/platform_data/i2c-nuc980.h	2019-12-29 19:12:21.000000000 -0800
+@@ -0,0 +1,21 @@
++/*
++ * include/linux/platform_data/i2c-nuc980.h
++ *
++ * Copyright (c) 2017 Nuvoton technology corporation.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation;version 2 of the License.
++ *
++ */
++#ifndef __ASM_ARCH_NUC980_I2C_H
++#define __ASM_ARCH_NUC980_I2C_H
++extern void nuc980_mfp_set_port_g(u32 pin, u32 func);
++
++struct nuc980_platform_i2c {
++	int bus_num;
++	unsigned long bus_freq;
++};
++ 
++#endif	/* __ASM_ARCH_NUC980_I2C_H */
++
+diff -uprN linux-4.4.194/include/linux/platform_data/spi-nuc980.h NUC980-linux-4.4.194/include/linux/platform_data/spi-nuc980.h
+--- linux-4.4.194/include/linux/platform_data/spi-nuc980.h	1969-12-31 16:00:00.000000000 -0800
++++ NUC980-linux-4.4.194/include/linux/platform_data/spi-nuc980.h	2019-12-29 19:12:21.000000000 -0800
+@@ -0,0 +1,30 @@
++/*
++ * include/linux/platform_data/spi-nuc980.h
++ *
++ * Copyright (c) 2017 Nuvoton technology corporation.
++ *
++ * Wan ZongShun <mcuos.com@gmail.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation;version 2 of the License.
++ *
++ */
++
++#ifndef __ASM_ARCH_SPI_H
++#define __ASM_ARCH_SPI_H
++
++struct nuc980_spi_info {
++	unsigned int num_cs;
++	unsigned int lsb;
++	unsigned int txneg;
++	unsigned int rxneg;
++	unsigned int divider;
++	unsigned int sleep;
++	unsigned int txbitlen;
++	unsigned int clkpol;
++	int bus_num;
++	unsigned int hz;
++};
++
++#endif
+diff -uprN linux-4.4.194/include/uapi/linux/rtc.h NUC980-linux-4.4.194/include/uapi/linux/rtc.h
+--- linux-4.4.194/include/uapi/linux/rtc.h	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.194/include/uapi/linux/rtc.h	2019-12-29 19:12:21.000000000 -0800
+@@ -94,6 +94,9 @@ struct rtc_pll_info {
+ #define RTC_VL_READ	_IOR('p', 0x13, int)	/* Voltage low detector */
+ #define RTC_VL_CLR	_IO('p', 0x14)		/* Clear voltage low information */
+ 
++#define RTC_GET_SPARE_DATA	_IOR('p', 0x20, unsigned long) /* Get spare register data */
++#define RTC_SET_SPARE_DATA	_IOW('p', 0x21, unsigned long) /* Set spare register data */
++
+ /* interrupt flags */
+ #define RTC_IRQF 0x80	/* Any of the following is active */
+ #define RTC_PF 0x40	/* Periodic interrupt */
+diff -uprN linux-4.4.194/include/uapi/linux/serial_core.h NUC980-linux-4.4.194/include/uapi/linux/serial_core.h
+--- linux-4.4.194/include/uapi/linux/serial_core.h	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.194/include/uapi/linux/serial_core.h	2019-12-29 19:12:21.000000000 -0800
+@@ -261,4 +261,10 @@
+ /* STM32 USART */
+ #define PORT_STM32	113
+ 
++/* NUC970 UART */
++#define PORT_NUC970	114
++
++/* NUC980 UART */
++#define PORT_NUC980	115
++
+ #endif /* _UAPILINUX_SERIAL_CORE_H */

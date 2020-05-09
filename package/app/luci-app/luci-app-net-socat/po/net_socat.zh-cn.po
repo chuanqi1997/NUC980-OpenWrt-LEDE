@@ -1,0 +1,79 @@
+# SOCAT 
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-12-21 23:08+0200\n"
+"PO-Revision-Date: 2015-04-23 13:49+0800\n"
+"Last-Translator: 466005858@qq.com\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 1.7.5\n"
+#socat
+
+#socat
+
+msgid "net_socat"
+msgstr "网络转发"
+
+msgid "Net Socat"
+msgstr "网络转发"
+
+msgid "net_socat tools"
+msgstr "网络转发工具"
+
+
+
+msgid "Target Zone"
+msgstr "目标区域"
+
+msgid "Socket CAT."
+msgstr "多功能的网络转发工具."
+
+msgid "Source Name"
+msgstr "源名称"
+
+msgid "Target Name"
+msgstr "目标名称"
+
+msgid "Source Port"
+msgstr "源端口"
+
+msgid "Target port"
+msgstr "目标端口"
+
+msgid "Source Protocol"
+msgstr "源协议"
+
+
+msgid "Target Protocol"
+msgstr "目标协议"
+
+msgid "Reconnect Time (S)"
+msgstr "重连时间 (秒)"
+ 
+msgid "Source Zone"
+msgstr "源区域"
+
+msgid "Target zone"
+msgstr "目标区域"
+
+msgid "Target IP address"
+msgstr "目标IP地址"
+
+
+
+msgid "TCP/UDP Port Forwards Table"
+msgstr "TCP/UDP端口转发表"
+
+msgid "TCP/UDP - Port Forwards"
+msgstr "TCP/UDP - 端口转发"
+
+msgid "TCP/UDP - Port Forwards Bidirectional forwarding."
+msgstr "TCP/UDP - 端口双向转发"
+
+
+

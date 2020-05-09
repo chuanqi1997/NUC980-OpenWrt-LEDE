@@ -1,0 +1,393 @@
+<%
+local data = self.data
+local stat = data and data["stat"]
+
+%>
+<style type="text/css">
+div.bar{
+	float:left;
+}
+div.section{
+	width: 100%;
+	float:left;
+	margin-bottom:40px;
+}
+div.section > div{
+	padding-left:40px;
+	padding-right:40px;
+
+}
+div.section h4{
+	font-size:18px;
+	font-weight: bolder;
+	color:#555;
+
+}
+div.row{
+
+}
+div.col{
+	float:left;
+
+}
+div.col.col-5{
+	width:50%;
+}
+div.col.col-3{
+	width:33.333333%;
+}
+dd{
+	padding:14px 12px;
+	background: #fbfbfc;
+	font-size:16px;
+	border-right:1px solid #ecedee;
+	border-bottom: 1px solid #ecedee;
+	color:#333;
+}
+dt{
+	padding:14px 12px;
+	background: #fff;
+	font-size:16px;
+	border-right:1px solid #ecedee;
+	border-bottom: 1px solid #ecedee;
+	color:#333;
+	height: 16px;
+}
+div.t > div.row:first-child > div.col > div.row > div.col > dd,
+div.t > div.row:first-child > div.col > div.row > div.col > dt{
+	border-top: 1px solid #ecedee;
+}
+
+div.t > div.row> div.col:first-child > div.row > div.col:first-child > dd,
+div.t > div.row> div.col:first-child > div.row > div.col:first-child > dt{
+	border-left: 1px solid #ecedee;
+}
+div.section > div.bar{
+	height:380px;
+	padding:0px;
+}
+#TimeCharts{
+	height:380px;
+}
+</style>
+<div class="moteContext">
+	<div class="section" >
+		<div><h4><%:Basic Infomation%></h4></div>
+		<div class="t">
+			<div  class="row">
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Last Seen%></dd></div><div class="col col-5"><dt id="last_seen"></dt></div>
+					</div>
+				</div>
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Device Address%></dd></div><div class="col col-5"><dt id="dev_addr"></dt></div>
+					</div>
+				</div>
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Packet Loss%></dd></div><div class="col col-5"><dt id="lost"></dt></div>
+					</div>
+				</div>
+			</div>
+			<div  class="t row">
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Total Uplink%></dd></div><div class="col col-5"><dt id="uplink_nb"></dt></div>
+					</div>
+				</div>
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Battery%></dd></div><div class="col col-5"><dt id="battery"></dt></div>
+					</div>
+				</div>
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Link Margin%></dd></div><div class="col col-5"><dt id="margin"></dt></div>
+					</div>
+				</div>
+			</div>
+			<div  class="t row">
+				<div class="col col-3">
+					<div class="row">
+						<div class="col col-5"><dd><%:Total Downlink%></dd></div><div class="col col-5"><dt id="downlink_nb"></dt></div>
+					</div>
+				</div>
+				
+				
+			</div>
+		</div>
+	</div>
+	<div class="section">
+		<div id="rssi" class="bar" style="width: 33%;"></div>
+		<div id="snr" class="bar" style="width: 33%;"></div>
+		<div id="dr" class="bar" style="width: 33%;"></div>
+	</div>
+	<div  class="section" id="TimeCharts" ></div>
+</div>
+
+<script type="text/javascript">
+	Date.prototype.format = function(format) {
+		var o = {
+			"M+": this.getMonth() + 1, //month
+			"d+": this.getDate(), //day
+			"h+": this.getHours(), //hour
+			"m+": this.getMinutes(), //minute
+			"s+": this.getSeconds(), //second
+			"q+": Math.floor((this.getMonth() + 3) / 3), //quarter
+			"S": this.getMilliseconds() //millisecond
+		}
+
+		if (/(y+)/.test(format)) {
+			format = format.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+		}
+
+		for (var k in o) {
+			if (new RegExp("(" + k + ")").test(format)) {
+				format = format.replace(RegExp.$1, RegExp.$1.length == 1 ? o[k] : ("00" + o[k]).substr(("" + o[k]).length));
+			}
+		}
+		return format;
+	}
+
+	$(document).ready(function(){
+		$("#last_seen").html(new Date(data.last_seen*1000).format("yyyy/MM/dd hh:mm:ss"));
+		$("#dev_addr").html(data.dev_addr);
+
+		$("#uplink_nb").html(data.stat.total_up);
+		$("#lost").html(data.stat.lost + " - " +( ((data.stat.lost *100) / (data.stat.total_up + data.stat.lost)).toFixed(2) + "%"));
+		$("#downlink_nb").html(data.stat.total_up);
+		$("#battery").html(data.battery == 0 ? "<%:Charging%>" : (Math.floor(data.battery*100/254)+"%"));
+		$("#margin").html(data.margin + "dB");
+	});
+
+	var colors = ['#c23531','#2f4554', '#61a0a8', '#d48265', '#91c7ae','#749f83',  '#ca8622', '#bda29a','#6e7074', '#546570', '#c4ccd3'];
+	var data = <%=luci.json.encode(data)%>;
+	var stat = data.stat;
+	console.log(data);
+
+	var rssiNames = [">-40","-60~-40","-80~-60","-100~-80","-120~-100","<-120"];
+	var rssistat = stat.RSSI;
+	var rssiPieData = []
+	for(var i = 0; i < rssiNames.length;i++){
+		rssiPieData.push({ name : rssiNames[i], value : rssistat[i], itemStyle : {
+			color: colors[rssiNames.length - i - 1]
+		}})
+	}
+	var RssiOpt = {
+		title : {
+			text : "<%:RSSI Distribution%>",
+			left: 40
+		},
+		grid :{
+			left: 80,
+			right: 80
+		},
+		xAxis :{
+			name : "RSSI(dbm)",
+			axisLabel : {
+				interval : 0,
+				rotate : 45
+			},
+			type : 'category',
+			data : [">-40","-60~-40","-80~-60","-100~-80","-120~-100","<-120"].reverse()
+		},
+		yAxis : {
+			name :"Packets",
+			type : 'value'
+		},
+		tooltip : {
+			trigger: 'item'
+		},
+		series : [{
+			data : rssiPieData.reverse(),//stat.RSSI.reverse(),
+			type : 'bar'
+		},{
+			data : rssiPieData,
+			type : 'pie',
+			center : ["87.5%","25%"],
+			radius : [ 0, "20%"],
+			label : {
+				normal : {
+					show : false
+				}
+			},itemStyle:{
+				shadowBlur : 5,
+				shadowColor: 'rgba(0,0,0,0.5)'
+			},
+			tooltip : {
+
+				formatter : '{b0} : {d0}%'
+			}
+		}]
+	}
+
+	var RssiChart = echarts.init(document.getElementById('rssi'));
+	RssiChart.setOption(RssiOpt);
+
+	var snrdata = [];
+	var snrNames = [">5","0~5","-5~0","-10~-5","-15~-10","<-15"]
+	for( var i = 0; i <snrNames.length; i++ ){
+		snrdata.push({ name : snrNames[i], value : stat.SNR[i], itemStyle : {
+			color: colors[snrNames.length - i - 1]
+		}});
+	};
+
+	var SnrOpt = {
+		title : {
+			text : "<%:SNR Distribution%>",
+			left: 40
+		},
+		grid :{
+			left: 80,
+			right: 80
+		},tooltip : {
+			trigger: 'item'
+		},
+		xAxis :{
+			name : "SNR(dB)",
+			axisLabel : {
+				interval : 0,
+				rotate : 45
+			},
+			type : 'category',
+			data : snrNames.reverse()
+		},
+		yAxis : {
+			name :"Packets",
+			type : 'value'
+		},
+		series : [{
+			data : snrdata.reverse(),
+			type : 'bar'
+		},{
+			data : snrdata,
+			type : 'pie',
+			center : ["87.5%","25%"],
+			radius : [ 0, "20%"],
+			label : {
+				normal : {
+					show : false
+				}
+			},
+			itemStyle:{
+				shadowBlur : 5,
+				shadowColor: 'rgba(0,0,0,0.5)'
+			},
+			tooltip : {
+
+				formatter : '{b0} : {d0}%'
+			}
+		}]
+	}
+
+	var snrChart = echarts.init(document.getElementById('snr'));
+	snrChart.setOption(SnrOpt);
+
+	var drdata = [];
+	var drNames = ["DR0","DR1","DR2","DR3","DR4","DR5","DR6","DR7"]
+	for( var i = 0; i <snrNames.length; i++ ){
+		drdata.push({ name : drNames[i], value : stat.DR[i], itemStyle : {
+			color: colors[i]
+		}});
+	};
+	var DrOpt = {
+		title : {
+			text : "<%:DataRate Distribution%>",
+			left: 40
+		},tooltip : {
+			trigger: 'item'
+		},
+		grid :{
+			left: 80,
+			right: 80
+		},
+		xAxis :{
+			name : "DataRate",
+			type : 'category',
+			data : drNames
+		},
+		yAxis : {
+			name :"Packets",
+			type : 'value'
+		},
+		series : [{
+			data : drdata,
+			type : 'bar'
+		},{
+			data : drdata,
+			type : 'pie',
+			center : ["87.5%","25%"],
+			radius : [ 0, "20%"],
+			label : {
+				normal : {
+					show : false
+				}
+			},itemStyle:{
+				shadowBlur : 5,
+				shadowColor: 'rgba(0,0,0,0.5)'
+			},
+			tooltip : {
+
+				formatter : '{b0} : {d0}%'
+			}
+		}]
+	}
+
+	var DRChart = echarts.init(document.getElementById('dr'));
+	DRChart.setOption(DrOpt);
+
+	var end = stat.uplink.endtime;
+	var T = [];
+	var up = [];
+	var down = [];
+	var step = stat.uplink.step;
+	for( var i = stat.uplink.data.length - 1; i > 0; i-- ){
+		var date = new Date((end - (i - 1) * step)*1000)
+		T.push(date.format("hh:mm"));
+		up.push(stat.uplink.data[stat.uplink.data.length - i - 1])
+		down.push(stat.downlink.data[stat.downlink.data.length - i - 1])
+	}
+	T.push(new Date((end + step)*1000).format("hh:mm"));
+	up.push(stat.uplink.data[stat.uplink.data.length - 1]);
+	down.push(stat.downlink.data[stat.downlink.data.length - 1]);
+	console.log("up", up);
+	console.log(T);
+	var options = {
+		grid :{
+			left: 80,
+			right: 80
+		},tooltip : {
+			trigger: 'item'
+		},
+		title : {
+			text : "<%:Traffic History%>",
+			left: 40
+		},
+		legend : {
+			data : [{name : "Uplink"},{name : "Downlink"}]
+		},
+		xAxis : {
+			name : 'Time',
+			type : 'category',
+			data : T
+		},
+		yAxis : {
+			name : 'packets',
+			type : 'value'
+		},
+		series : [{
+			name : 'Uplink',
+			data : up,
+			type : 'line'
+		},{
+			name : 'Downlink',
+			data : down,
+			type : 'line'
+		}],
+		animation : false
+	}
+	var TimeChart = echarts.init(document.getElementById('TimeCharts'));
+	TimeChart.setOption(options);
+</script>

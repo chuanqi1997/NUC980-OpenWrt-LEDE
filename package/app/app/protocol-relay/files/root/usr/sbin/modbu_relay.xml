@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<relay_group>
+    <relay_table name="relay" addr="1" bandrate="9600" ptl="rtu" bytesize = "8" parity = 'N' port='8000'>
+		<!--遥测-->
+		<measure_table reg_start = '0' count="8">
+			<measure_point dev_id = '0' point_id="0"  desc_name="第一路空调运行状态"/>
+			<measure_point dev_id = '0' point_id="1"  desc_name="第二路空调运行状态"/>
+		</measure_table>
+		<!--遥信-->
+		<signal_table count="0" reg_start = '0'/>
+		<pulse_table count="0" reg_start = '0'/>
+		<!--遥控-->
+		<control_table count="3" reg_start = '0'>
+			<measure_point dev_id = '0' point_id="0"  desc_name="第一路空调运行状态"/>
+			<measure_point dev_id = '0' point_id="1"  desc_name="第二路空调运行状态"/>
+		</control_table>
+		<fixed_table count="0" reg_start = '0'/>
+		<yt_table count="0" reg_start = '0'/>
+    </relay_table>
+</relay_group>

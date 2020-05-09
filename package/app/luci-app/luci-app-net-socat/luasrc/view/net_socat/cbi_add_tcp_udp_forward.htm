@@ -1,0 +1,169 @@
+<%-
+	local fw = require "luci.model.firewall".init()
+	local izl = { }
+	local ezl = { }
+	local _, z
+	for _, z in ipairs(fw:get_zones()) do
+		if z:name() ~= "wan" then
+			izl[#izl+1] = z
+		end
+		if z:name() ~= "lan" then
+			ezl[#ezl+1] = z
+		end
+	end
+-%>
+<div class="cbi-section-create cbi-tblsection-create">
+	<br />
+	<table class="cbi-section-table" style="width:810px; margin-left:5px">
+	
+		<tr class="cbi-section-table-titles">
+			<th class="cbi-section-table-cell" colspan="8"><%:New port forward%>:</th>
+		</tr>
+		
+		<tr class="cbi-section-table-descr">
+			<th class="cbi-section-table-cell"><%:Source Name%></th>
+			<th class="cbi-section-table-cell"><%:Source Zone%></th>
+			<th class="cbi-section-table-cell"><%:Source Protocol%></th>
+			<th class="cbi-section-table-cell"><%:Source IP address%></th>
+			<th class="cbi-section-table-cell"><%:Source Port%></th>
+			<th class="cbi-section-table-cell"><%:Reconnect Time (S)%></th>
+			<th class="cbi-section-table-cell"></th>
+		</tr>
+		<tr class="cbi-section-table-row">
+		
+			<td class="cbi-section-table-cell">
+				<input type="text" class="cbi-input-text"  id="_newfwd.source_name" name="_newfwd.source_name" placeholder="<%:Source Name%>" />
+			</td>
+
+			<td class="cbi-section-table-cell" >
+				<select class="cbi-input-select" id="_newfwd.source_zone" name="_newfwd.source_zone"">
+					<% for _, z in ipairs(ezl) do -%><option value="<%=z:name()%>"><%=z:name()%></option><%- end %>
+				</select>
+			</td>
+			
+			<td class="cbi-section-table-cell">
+				<select class="cbi-input-select" id="_newfwd.source_proto" name="_newfwd.source_proto">
+					<option value="tcp-connect">TCP-CLIENT</option>
+					<option value="tcp-listen">TCP-SERVER</option>
+					<option value="udp-connect">UDP-CLIENT</option>
+					<option value="udp-listen">UDP-SERVER</option>
+					<option value="other"><%:Other...%></option>
+				</select>
+			</td>
+			
+			<td class="cbi-section-table-cell" >
+				<input type="text" class="cbi-input-text" id="_newfwd.source_addr" name="_newfwd.source_addr" />
+			</td>
+			<td class="cbi-section-table-cell">
+				<input type="text" class="cbi-input-text" style="width:110px" id="_newfwd.source_port" name="_newfwd.source_port" />
+			</td>
+			<td class="cbi-section-table-cell" >
+				<input type="text" class="cbi-input-text" style="width:110px" id="_newfwd.source_rectime" name="_newfwd.source_rectime" oninput="value=value.replace(/[^\d]/g,'')"/>
+			</td>
+		</tr>
+		
+		<tr class="cbi-section-table-descr">
+			<th class="cbi-section-table-cell"><%:Target Name%></th>
+			<th class="cbi-section-table-cell"><%:Target  zone%></th>
+			<th class="cbi-section-table-cell"><%:Target Protocol%></th>
+			<th class="cbi-section-table-cell"><%:Target IP address%></th>
+			<th class="cbi-section-table-cell"><%:Target port%></th>
+			<th class="cbi-section-table-cell"><%:Reconnect Time (S)%></th>
+			<th class="cbi-section-table-cell"></th>
+		</tr>
+		
+		<tr class="cbi-section-table-row">
+		
+			<td class="cbi-section-table-cell">
+				<input type="text" class="cbi-input-text"  id="_newfwd.target_name" name="_newfwd.target_name" placeholder="<%:Target Name%>" />
+			</td>
+			<td class="cbi-section-table-cell"">
+				<select class="cbi-input-select" id="_newfwd.target_zone" name="_newfwd.target_zone">
+					<% for _, z in ipairs(izl) do -%><option value="<%=z:name()%>"><%=z:name()%></option><%- end %>
+				</select>
+			</td>
+			
+			<td class="cbi-section-table-cell">
+				<select class="cbi-input-select" id="_newfwd.target_proto" name="_newfwd.target_proto">
+					<option value="tcp-connect">TCP-CLIENT</option>
+					<option value="tcp-listen">TCP-SERVER</option>
+					<option value="udp-connect">UDP-CLIENT</option>
+					<option value="udp-listen">UDP-SERVER</option>
+					<option value="other"><%:Other...%></option>
+				</select>
+			</td>
+			
+			<td class="cbi-section-table-cell" >
+				<input type="text" class="cbi-input-text" id="_newfwd.target_addr" name="_newfwd.target_addr" />
+			</td>
+			
+			<td class="cbi-section-table-cell" >
+				<input type="text" class="cbi-input-text" style="width:110px" id="_newfwd.target_port" name="_newfwd.target_port" />
+			</td>
+			
+			<td class="cbi-section-table-cell" >
+				<input type="text" class="cbi-input-text" style="width:110px" id="_newfwd.target_rectime" name="_newfwd.target_rectime" oninput="value=value.replace(/[^\d]/g,'')"/>
+			</td>
+			
+			<td class="cbi-section-table-cell">
+				<input type="submit" class="cbi-button cbi-button-add" name="cbi.cts.<%=self.config%>.<%=self.sectiontype%>.<%=section%>" value="<%:Add%>" />
+			</td>
+		</tr>
+		
+	</table>
+
+	<script type="text/javascript">//<![CDATA[
+
+		cbi_validate_field('_newfwd.target_port', true, 'portrange');
+		cbi_validate_field('_newfwd.source_addr', true, 'host');
+		cbi_validate_field('_newfwd.source_port', true, 'portrange');
+
+		cbi_combobox_init('_newfwd.source_addr', {
+			<% first = true; luci.sys.net.ipv4_hints(function(ip, name) %>
+				<%- if first then first = false else %>,<% end -%>'<%=ip%>': '<%=ip%> (<%=name%>)'
+			<%- end) %> }, '', '<%: -- custom -- %>');
+
+		cbi_combobox_init('_newfwd.target_addr', {
+			<% first = true; luci.sys.net.ipv4_hints(function(ip, name) %>
+				<%- if first then first = false else %>,<% end -%>'<%=ip%>': '<%=ip%> (<%=name%>)'
+			<%- end) %> }, '', '<%: -- custom -- %>');
+
+		cbi_bind(document.getElementById('_newfwd.target_port'), 'blur',
+			function() {
+				var n = document.getElementById('_newfwd.name');
+				var p = document.getElementById('_newfwd.target_proto');
+				var i = document.getElementById('_newfwd.target_port');
+				var hints = {
+				/*  port    name     0=both, 1=tcp, 2=udp, 3=other */
+					21:   [ 'FTP',   1 ],
+					22:   [ 'SSH',   1 ],
+					53:   [ 'DNS',   0 ],
+					80:   [ 'HTTP',  1 ],
+					443:  [ 'HTTPS', 1 ],
+					3389: [ 'RDP',   1 ],
+					5900: [ 'VNC',   1 ],
+				};
+
+				if (!this.className.match(/invalid/))
+				{
+					if (!i.value) i.value = this.value;
+
+					var hint = hints[this.value || 0] || hints[i.value || 0];
+					if (hint)
+					{
+						p.selectedIndex = hint[1];
+
+						if (!n.value)
+							n.value = hint[0];
+					}
+					else if (!n.value)
+					{
+						n.value = 'Forward' + this.value;
+					}
+				}
+			});
+
+
+		cbi_validate_field('cbi.cts.<%=self.config%>.<%=self.sectiontype%>.<%=section%>', true, 'uciname');
+	//]]></script>
+</div>

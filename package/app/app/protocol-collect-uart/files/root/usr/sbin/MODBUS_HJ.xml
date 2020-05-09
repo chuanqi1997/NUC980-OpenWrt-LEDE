@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<device_tree>
+
+	<!--设备ID为唯一标志对应设备-->
+    <device name="WXDCJ" addr="1" dev_id='1' bandrate="9600" ptl="modbus-rtu" bytesize = "8" parity = 'N'>
+
+		<!--遥测0-->
+		<measure_table reg_start = '0' count="2" index='0'>
+			<measure_point id="0" base_value="0.000000" multiply_value="1.000000" formula="" desc_name="第一路空调运行状态"/>
+			<measure_point id="1" base_value="0.000000" multiply_value="1.000000" formula="" desc_name="第二路空调运行状态"/>
+		</measure_table>
+
+		<!--遥测1-->
+		<measure_table reg_start = '20' count="2" index='1'>
+			<measure_point id="20" base_value="0.000000" multiply_value="1.000000" formula="" desc_name="第一路空调运行状态"/>
+			<measure_point id="21" base_value="0.000000" multiply_value="1.000000" formula="" desc_name="第二路空调运行状态"/>
+		</measure_table>
+
+
+		<!--遥信-->
+		<signal_table count="0" reg_start = '0'/>
+		<pulse_table count="0" reg_start = '0'/>
+
+		<!--遥控-->
+		<control_table count="3" reg_start = '0' >
+			<control_point id="0" type="0" unit_name="" unit_name2="" desc_name="开机制冷指令"/>
+			<control_point id="1" type="0" unit_name="" unit_name2="" desc_name="开机制热指令"/>
+			<control_point id="2" desc_name="关机指令"/>
+		</control_table>
+
+		<fixed_table count="0" reg_start = '0'/>
+		<yt_table count="0" reg_start = '0'/>
+    </device>
+
+	<device name="KT" addr="2" dev_id='2' bandrate="9600" ptl="modbus-null" bytesize = "8" parity = 'N'>
+
+		<measure_table count="8" reg_start = '0'>
+			<measure_point id="0" group_no="0" entry_no="0" fun_no="0" inf_no="0" base_value="0.000000" multiply_value="1.000000" unit_name="" unit_name2="" formula="" desc_name="第一路空调运行状态"/>
+			<measure_point id="1" group_no="0" entry_no="0" fun_no="0" inf_no="0" base_value="0.000000" multiply_value="1.000000" unit_name="" unit_name2="" formula="" desc_name="第二路空调运行状态"/>
+		</measure_table>
+
+		<signal_table count="0" reg_start = '0'/>
+		<pulse_table count="0" reg_start = '0'/>
+		<control_table count="3" reg_start = '0'>
+			<control_point id="0" group_no="0" entry_no="0" fun_no="0" inf_no="0" type="0" unit_name="" unit_name2="" desc_name="开机制冷指令"/>
+			<control_point id="1" group_no="0" entry_no="0" fun_no="0" inf_no="0" type="0" unit_name="" unit_name2="" desc_name="开机制热指令"/>
+			<control_point id="2" group_no="0" entry_no="0" fun_no="0" inf_no="0" type="0" unit_name="" unit_name2="" desc_name="关机指令"/>
+		</control_table>
+		<fixed_table count="0" reg_start = '0'/>
+		<yt_table count="0" reg_start = '0'/>
+    </device>
+
+	<device name="TEST" addr="3" dev_id='3' bandrate="9600" ptl="modbus-null" bytesize = "8" parity = 'N'>
+		<measure_table count="8" reg_start = '0'>
+			<measure_point id="0" group_no="0" entry_no="0" fun_no="0" inf_no="0" base_value="0.000000" multiply_value="1.000000" unit_name="" unit_name2="" formula="" desc_name="第一路空调运行状态"/>
+			<measure_point id="1" group_no="0" entry_no="0" fun_no="0" inf_no="0" base_value="0.000000" multiply_value="1.000000" unit_name="" unit_name2="" formula="" desc_name="第二路空调运行状态"/>
+		</measure_table>
+    </device>
+
+
+</device_tree>

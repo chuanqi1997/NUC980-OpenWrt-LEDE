@@ -1,0 +1,11 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@ptl-relay[-1]
+	add ucitrack ptl-relay
+        set ucitrack.@ptl-relay[-1].init=protocol-collect-uart
+	commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0

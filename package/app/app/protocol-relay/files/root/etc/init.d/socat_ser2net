@@ -1,0 +1,206 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2008-2014 OpenWrt.org
+
+START=100
+STOP=100
+
+
+#PROCD_DEBUG=1
+
+USE_PROCD=1
+
+
+#SERVICE_WRITE_PID=1
+
+PROG=/usr/bin/socat
+
+
+#NAME=socat
+
+
+NAME=serial_socat
+
+
+validate_section_socat()
+{
+	uci_validate_section $NAME $NAME "${1}" \
+	,'enabled:bool:1' \
+
+
+       return $?  
+}
+
+socat_instance()
+{
+	local enabled
+	local server_addr server_port
+	local local_port
+	local MaxWaitTime
+	local socat_log_enable
+	local ReConnectTime
+	local protocol
+	local serial
+	local databit
+	local stopbit
+	local baudrate
+	local parity_check
+
+
+
+	config_get enabled  $1 enabled
+
+#	validate_section_socat "${1}" || {
+#		echo "validation failed"
+#		return 1
+#	}
+
+	[ "${enabled}" = "0" ] && return 1
+	
+
+	config_get protocol     $1	protocol
+	config_get serial       $1	serial
+	config_get databit		$1	databit
+	config_get stopbit		$1	stopbit
+	config_get baudrate		$1 	baudrate
+	config_get parity_check	$1 	parity_check
+	config_get     server_port  $1 server_port
+	config_get     server_addr  $1 server_addr
+#	config_get     local_port   $1 local_port
+	config_get     server_port  $1 server_port
+	config_get     ReConnectTime $1 ReConnectTime
+	config_get     MaxWaitTime $1 MaxWaitTime
+	config_get     socat_log_enable $1 socat_log_enable
+	#get the lan ip 	
+
+#	lan_ip=`uci get network.lan.ipaddr -q`
+#	local_ip=`uci get network.loopback.ipaddr -q`
+	echo "socat instance."
+	echo "socat instance." >> /var/log/socat_ser2net.log
+
+	procd_open_instance
+	procd_set_param command "$PROG"
+	
+	if [ ! -c $serial ]; then
+			echo "$serial is Not found "
+			echo "$serial is Not found "  >> /var/log/${NAME}.log
+			return 1
+		else 
+			echo "$serial is existed"
+			echo "$serial is existed"  >> /var/log/${NAME}.log
+	fi
+
+
+	
+#       option SocatOptions '-d -d  -lf /var/log/socat.log tcp4-connect:192.168.1.1:8000 tcp4-connect:139.196.83.26:8010'
+	
+#	SocatOptions="-d -d -T ${MaxWaitTime} -lf /var/log/socat.log tcp4-connect:${lan_ip}:${local_port} tcp4-connect:${server_addr}:${server_port}"
+
+#socat -d -d /dev/ttyS1,raw,nonblock,ignoreeof,B115200,CS7,PARENB,PARODD,cr,echo=0 TCP4-LISTEN:5555,reuseaddr
+	SocatOptions=""
+	arg_check=""
+	arg_stopbit=""
+	arg_net=""
+
+	if [ "${parity_check}" = "NONE" ]
+	then
+		arg_check=""
+		echo "NO PARITY CHECK"
+	elif [ "${parity_check}" = "PARODD" ]
+	then
+		echo "PARENB,PARODD"
+		arg_check="PARENB,PARODD,"
+	elif [ "${parity_check}" = "PARENB" ]
+	then
+		echo "PARENB"
+		arg_check="PARENB,"
+	fi
+
+	if [ "${stopbit}" = "CSTOPB" ]
+	then
+		echo "CSTOPB"
+		arg_stopbit="CSTOPB,"
+	else 
+		arg_stopbit=""
+	fi
+
+	if [[ "${protocol}" = "tcp-listen" || "${protocol}" = "udp-listen" ]]
+	then
+		arg_net="${protocol}:${server_port}"
+	else
+		arg_net="${protocol}:${server_addr}:${server_port}"
+	fi
+	echo "arg_net:$arg_net"
+#	SocatOptions="-d -d -T ${MaxWaitTime} ${serial},raw,nonblock,ignoreeof,${baudrate},${databit},${arg_check}cr,echo=0 ${arg_net}"
+
+
+	if [ "socat instance.${socat_log_enable}" = "1" ]
+	then
+		echo "record log" >> /var/log/socat_ser2net.log
+#		SocatOptions="-d -d -T ${MaxWaitTime} -lf /var/log/${NAME}.log tcp4-connect:${local_ip}:${local_port} tcp4-connect:${server_addr}:${server_port}"
+		SocatOptions="-d -d -T ${MaxWaitTime} -lf /var/log/${NAME}.log ${serial},raw,nonblock,ignoreeof,${baudrate},${databit},${arg_check}${arg_stopbit}cr,echo=0 ${arg_net}"
+		echo "SocatOptions:${SocatOptions}"
+	else
+#		echo "not record log" >> /var/log/${NAME}.log
+#		SocatOptions="-d -d -T ${MaxWaitTime} tcp4-connect:${local_ip}:${local_port} tcp4-connect:${server_addr}:${server_port}"
+
+		SocatOptions="-d -d -T ${MaxWaitTime} ${serial},raw,nonblock,ignoreeof,${baudrate},${databit},${arg_check}${arg_stopbit}cr,echo=0 ${arg_net}"
+		echo "SocatOptions:${SocatOptions}"	
+	fi
+
+
+
+	procd_append_param command ${SocatOptions}
+        
+	echo "respawn ${respawn_threshold:-60} ${respawn_timeout:-${ReConnectTime}} ${respawn_retry:-4294967295} " >> /var/log/socat_ser2net.log	
+	
+	procd_set_param respawn ${respawn_threshold:-60} ${respawn_timeout:-${ReConnectTime}} ${respawn_retry:-4294967295}
+#	SERVICE_PID_FILE=/var/run/$NAME.pid
+	procd_set_param pidfile /var/run/$NAME.pid
+#	procd_set_param file /etc/config/${NAME}
+	procd_close_instance
+
+}
+
+
+start_service () {
+	config_load "${NAME}"
+	config_foreach socat_instance ${NAME}
+}
+
+
+stop () {
+	echo "socat ser2net stop. $date" >> /var/log/${NAME}.log
+	service_stop $PROG
+}
+
+service_triggers() {
+        procd_add_reload_trigger "${NAME}"
+}
+
+start () {
+	echo "socat ${NAME} start. $date" >> /var/log/${NAME}.log    
+	start_service
+}
+
+
+restart () {
+        echo "restart ${NAME} ser2net $date " >> /var/log/${NAME}.log                                     
+	stop 
+	start
+}
+
+#reload (){
+#	service_reload
+#	reload_service
+#	stop
+#	start_service
+#}
+
+reload_service() {
+	local rv=0
+	ubus call "${NAME}" reload || rv=1
+	restart
+	return $rv
+}
+
+

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@protocol-collect-relay[-1]
+	add ucitrack protocol-collect-relay
+        set ucitrack.@protocol-collect-relay[-1].init=protocol-collect-relay
+#        add_list ucitrack.@sub-ghz[0].init=sub-ghz
+	commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0

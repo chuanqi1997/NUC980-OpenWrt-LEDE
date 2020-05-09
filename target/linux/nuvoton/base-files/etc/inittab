@@ -1,0 +1,5 @@
+::sysinit:/etc/init.d/rcS S boot
+::shutdown:/etc/init.d/rcS K shutdown
+#::askconsole:/bin/login
+ttyS0::askfirst:/bin/login
+tty0::askfirst:/bin/login

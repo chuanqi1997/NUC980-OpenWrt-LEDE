@@ -1,0 +1,29 @@
+<%+cbi/valueheader%>
+	<script type="text/javascript">
+		function _generate_key(id){
+			var KEY = "";
+			for( var i = 0 ; i < 16; i++ ){
+				var r = Math.round(Math.random()*1000)%255;
+				var byte = r.toString(16,2);
+				if( byte.length == 1){
+					byte = "0" + byte;
+				}
+				KEY += byte;
+			}
+			
+			document.getElementById(id).value = KEY;
+		}
+		function ___copy(id){
+			document.getElementById(id).select();
+			document.execCommand("Copy");
+
+		}
+	</script>
+	<input type="<%=self.password and 'password" class="cbi-input-password' or 'text" class="cbi-input-text' %>" onchange="cbi_d_update(this.id)"<%=
+		attr("name", cbid) .. attr("id", cbid) .. attr("value", self:cfgvalue(section) or self.default) ..
+		ifattr(self.size, "size") .. ifattr(self.placeholder, "placeholder")
+	%> />
+	<img src="<%=resource%>/cbi/reload.gif" style="vertical-align:middle" title="<%:Generate Key%>" onclick="_generate_key('<%=cbid%>')" />
+	<img src="<%=resource%>/cbi/file.gif" style="vertical-align:middle" title="<%:Copy%>" onclick="___copy('<%=cbid%>')" />
+	
+<%+cbi/valuefooter%>

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@serial_socat[-1]
+	add ucitrack serial_socat
+        set ucitrack.@serial_socat[-1].init=socat_ser2net
+#        add_list ucitrack.@sub-ghz[0].init=sub-ghz
+	commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0

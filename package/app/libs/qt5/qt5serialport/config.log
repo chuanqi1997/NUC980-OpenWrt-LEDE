@@ -1,0 +1,11 @@
+executing config test ntddmodm
++ cd /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/package/app/libs/qt5/qt5serialport/config.tests/ntddmodm && /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtbase-everywhere-src-5.12.7/bin/qmake  -spec /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtbase-everywhere-src-5.12.7/mkspecs/linux-openwrt-g++ "CONFIG -= qt debug_and_release app_bundle lib_bundle" /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtserialport-everywhere-src-5.12.7/config.tests/ntddmodm
++ cd /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/package/app/libs/qt5/qt5serialport/config.tests/ntddmodm && MAKEFLAGS= make
+> make[4]: Entering directory '/home/legend/Nuvoton/nuc980/openwrt-lede-17.01/package/app/libs/qt5/qt5serialport/config.tests/ntddmodm'
+> arm-openwrt-linux-muslgnueabi-g++ -c -pipe -O2 -march=armv5 -O2 -march=armv5 -O2 -std=gnu++11 -fno-exceptions -Wall -W -fPIC -DQT_NO_EXCEPTIONS -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE -I/home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtserialport-everywhere-src-5.12.7/config.tests/ntddmodm -I. -I/home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtbase-everywhere-src-5.12.7/mkspecs/linux-openwrt-g++ -o .obj/main.o /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtserialport-everywhere-src-5.12.7/config.tests/ntddmodm/main.cpp
+> /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/build_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/qtserialport-everywhere-src-5.12.7/config.tests/ntddmodm/main.cpp:40:21: fatal error: windows.h: No such file or directory
+> compilation terminated.
+> Makefile:402: recipe for target '.obj/main.o' failed
+> make[4]: *** [.obj/main.o] Error 1
+> make[4]: Leaving directory '/home/legend/Nuvoton/nuc980/openwrt-lede-17.01/package/app/libs/qt5/qt5serialport/config.tests/ntddmodm'
+test ntddmodm FAILED

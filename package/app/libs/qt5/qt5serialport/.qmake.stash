@@ -1,0 +1,20 @@
+QMAKE_CXX.QT_COMPILER_STDCXX = 199711L
+QMAKE_CXX.QMAKE_GCC_MAJOR_VERSION = 5
+QMAKE_CXX.QMAKE_GCC_MINOR_VERSION = 4
+QMAKE_CXX.QMAKE_GCC_PATCH_VERSION = 0
+QMAKE_CXX.COMPILER_MACROS = \
+    QT_COMPILER_STDCXX \
+    QMAKE_GCC_MAJOR_VERSION \
+    QMAKE_GCC_MINOR_VERSION \
+    QMAKE_GCC_PATCH_VERSION
+QMAKE_CXX.INCDIRS = \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/arm-openwrt-linux-muslgnueabi/include/c++/5.4.0 \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/arm-openwrt-linux-muslgnueabi/include/c++/5.4.0/arm-openwrt-linux-muslgnueabi \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/arm-openwrt-linux-muslgnueabi/include/c++/5.4.0/backward \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/arm-openwrt-linux-muslgnueabi/sys-include \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/arm-openwrt-linux-muslgnueabi/include \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/lib/gcc/arm-openwrt-linux-muslgnueabi/5.4.0/include \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/target-arm_arm926ej-s_musl-1.1.16_eabi/usr/include
+QMAKE_CXX.LIBDIRS = \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/lib/gcc/arm-openwrt-linux-muslgnueabi/5.4.0 \
+    /home/legend/Nuvoton/nuc980/openwrt-lede-17.01/staging_dir/toolchain-arm_arm926ej-s_gcc-5.4.0_musl-1.1.16_eabi/arm-openwrt-linux-muslgnueabi/lib

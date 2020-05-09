@@ -1,0 +1,36 @@
+<%+cbi/valueheader%>
+<script type="text/javascript">
+	$(document).ready(function(){
+
+		$("#cbid\\.loragwbr\\.gwbridge\\.proto").change(function(){
+
+			var p = $("#cbid\\.loragwbr\\.gwbridge\\.proto").val();
+
+			if( p == "protobuf"){
+				$("#cbid\\.loragwbr\\.gwbridge\\.rx_topic").val("gateway/{{eui}}/event/up");
+				$("#cbid\\.loragwbr\\.gwbridge\\.tx_topic").val("gateway/{{eui}}/command/down");
+				$("#cbid\\.loragwbr\\.gwbridge\\.ack_topic").val("gateway/{{eui}}/event/ack");
+				$("#cbid\\.loragwbr\\.gwbridge\\.stat_topic").val("gateway/{{eui}}/event/stats");
+			}
+			else if(p == "json-v2"){
+				$("#cbid\\.loragwbr\\.gwbridge\\.rx_topic").val("gateway/{{eui}}/rx");
+				$("#cbid\\.loragwbr\\.gwbridge\\.tx_topic").val("gateway/{{eui}}/tx");
+				$("#cbid\\.loragwbr\\.gwbridge\\.ack_topic").val("gateway/{{eui}}/ack");
+				$("#cbid\\.loragwbr\\.gwbridge\\.stat_topic").val("gateway/{{eui}}/stats");
+			}
+			else
+			{
+				$("#cbid\\.loragwbr\\.gwbridge\\.rx_topic").val("gateway/{{eui}}/event/up");
+				$("#cbid\\.loragwbr\\.gwbridge\\.tx_topic").val("gateway/{{eui}}/command/down");
+				$("#cbid\\.loragwbr\\.gwbridge\\.ack_topic").val("gateway/{{eui}}/event/ack");
+				$("#cbid\\.loragwbr\\.gwbridge\\.stat_topic").val("gateway/{{eui}}/event/stats");			
+			}
+		});
+	});
+</script>
+<select class="cbi-input-select" onchange="cbi_d_update(this.id)"<%= attr("id", cbid) .. attr("name", cbid) .. ifattr(self.size, "size") %>>
+<% for i, key in pairs(self.keylist) do -%>
+	<option id="cbi-<%=self.config.."-"..section.."-"..self.option.."-"..key%>"<%= attr("value", key) .. ifattr(tostring(self:cfgvalue(section) or self.default) == key, "selected", "selected") %>><%=striptags(self.vallist[i])%></option>
+<%- end %>
+</select>
+<%+cbi/valuefooter%>
