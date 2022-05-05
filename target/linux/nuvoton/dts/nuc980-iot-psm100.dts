@@ -1,0 +1,639 @@
+/*
+ * Device Tree Source for NUC980 IOT board
+ *
+ * Copyright (C) 2022 Nuvoton Technology Corp.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+/dts-v1/;
+/include/ "nuc980-iot.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+
+#define	NUC980_PA0	(0x00 + 0)
+#define	NUC980_PA1	(0x00 + 1)
+#define	NUC980_PA2	(0x00 + 2)
+#define	NUC980_PA3	(0x00 + 3)
+#define	NUC980_PA4	(0x00 + 4)
+#define	NUC980_PA5	(0x00 + 5)
+#define	NUC980_PA6	(0x00 + 6)
+#define	NUC980_PA7	(0x00 + 7)
+#define	NUC980_PA8	(0x00 + 8)
+#define	NUC980_PA9	(0x00 + 9)
+#define	NUC980_PA10	(0x00 + 10)
+#define	NUC980_PA11	(0x00 + 11)
+#define	NUC980_PA12	(0x00 + 12)
+#define	NUC980_PA13	(0x00 + 13)
+#define	NUC980_PA14	(0x00 + 14)
+#define	NUC980_PA15	(0x00 + 15)
+
+#define	NUC980_PB0	(0x20 + 0)
+#define	NUC980_PB1	(0x20 + 1)
+#define	NUC980_PB2	(0x20 + 2)
+#define	NUC980_PB3	(0x20 + 3)
+#define	NUC980_PB4	(0x20 + 4)
+#define	NUC980_PB5	(0x20 + 5)
+#define	NUC980_PB6	(0x20 + 6)
+#define	NUC980_PB7	(0x20 + 7)
+#define	NUC980_PB8	(0x20 + 8)
+#define	NUC980_PB9	(0x20 + 9)
+#define	NUC980_PB10	(0x20 + 10)
+#define	NUC980_PB11	(0x20 + 11)
+#define	NUC980_PB12	(0x20 + 12)
+#define	NUC980_PB13	(0x20 + 13)
+#define	NUC980_PB14	(0x20 + 14)
+#define	NUC980_PB15	(0x20 + 15)
+
+#define	NUC980_PC0	(0x40 + 0)
+#define	NUC980_PC1	(0x40 + 1)
+#define	NUC980_PC2	(0x40 + 2)
+#define	NUC980_PC3	(0x40 + 3)
+#define	NUC980_PC4	(0x40 + 4)
+#define	NUC980_PC5	(0x40 + 5)
+#define	NUC980_PC6	(0x40 + 6)
+#define	NUC980_PC7	(0x40 + 7)
+#define	NUC980_PC8	(0x40 + 8)
+#define	NUC980_PC9	(0x40 + 9)
+#define	NUC980_PC10	(0x40 + 10)
+#define	NUC980_PC11	(0x40 + 11)
+#define	NUC980_PC12	(0x40 + 12)
+#define	NUC980_PC13	(0x40 + 13)
+#define	NUC980_PC14	(0x40 + 14)
+#define	NUC980_PC15	(0x40 + 15)
+
+#define	NUC980_PD0	(0x60 + 0)
+#define	NUC980_PD1	(0x60 + 1)
+#define	NUC980_PD2	(0x60 + 2)
+#define	NUC980_PD3	(0x60 + 3)
+#define	NUC980_PD4	(0x60 + 4)
+#define	NUC980_PD5	(0x60 + 5)
+#define	NUC980_PD6	(0x60 + 6)
+#define	NUC980_PD7	(0x60 + 7)
+#define	NUC980_PD8	(0x60 + 8)
+#define	NUC980_PD9	(0x60 + 9)
+#define	NUC980_PD10	(0x60 + 10)
+#define	NUC980_PD11	(0x60 + 11)
+#define	NUC980_PD12	(0x60 + 12)
+#define	NUC980_PD13	(0x60 + 13)
+#define	NUC980_PD14	(0x60 + 14)
+#define	NUC980_PD15	(0x60 + 15)
+
+#define	NUC980_PE0	(0x80 + 0)
+#define	NUC980_PE1	(0x80 + 1)
+#define	NUC980_PE2	(0x80 + 2)
+#define	NUC980_PE3	(0x80 + 3)
+#define	NUC980_PE4	(0x80 + 4)
+#define	NUC980_PE5	(0x80 + 5)
+#define	NUC980_PE6	(0x80 + 6)
+#define	NUC980_PE7	(0x80 + 7)
+#define	NUC980_PE8	(0x80 + 8)
+#define	NUC980_PE9	(0x80 + 9)
+#define	NUC980_PE10	(0x80 + 10)
+#define	NUC980_PE11	(0x80 + 11)
+#define	NUC980_PE12	(0x80 + 12)
+#define	NUC980_PE13	(0x80 + 13)
+#define	NUC980_PE14	(0x80 + 14)
+#define	NUC980_PE15	(0x80 + 15)
+
+#define	NUC980_PF0	(0xA0 + 0)
+#define	NUC980_PF1	(0xA0 + 1)
+#define	NUC980_PF2	(0xA0 + 2)
+#define	NUC980_PF3	(0xA0 + 3)
+#define	NUC980_PF4	(0xA0 + 4)
+#define	NUC980_PF5	(0xA0 + 5)
+#define	NUC980_PF6	(0xA0 + 6)
+#define	NUC980_PF7	(0xA0 + 7)
+#define	NUC980_PF8	(0xA0 + 8)
+#define	NUC980_PF9	(0xA0 + 9)
+#define	NUC980_PF10	(0xA0 + 10)
+#define	NUC980_PF11	(0xA0 + 11)
+#define	NUC980_PF12	(0xA0 + 12)
+#define	NUC980_PF13	(0xA0 + 13)
+#define	NUC980_PF14	(0xA0 + 14)
+#define	NUC980_PF15	(0xA0 + 15)
+
+#define	NUC980_PG0	(0xC0 + 0)
+#define	NUC980_PG1	(0xC0 + 1)
+#define	NUC980_PG2	(0xC0 + 2)
+#define	NUC980_PG3	(0xC0 + 3)
+#define	NUC980_PG4	(0xC0 + 4)
+#define	NUC980_PG5	(0xC0 + 5)
+#define	NUC980_PG6	(0xC0 + 6)
+#define	NUC980_PG7	(0xC0 + 7)
+#define	NUC980_PG8	(0xC0 + 8)
+#define	NUC980_PG9	(0xC0 + 9)
+#define	NUC980_PG10	(0xC0 + 10)
+#define	NUC980_PG11	(0xC0 + 11)
+#define	NUC980_PG12	(0xC0 + 12)
+#define	NUC980_PG13	(0xC0 + 13)
+#define	NUC980_PG14	(0xC0 + 14)
+#define	NUC980_PG15	(0xC0 + 15)
+
+
+
+//#define PSM100_V0_1
+#define PSM100_V0_2
+
+/ {
+#ifdef PSM100_V0_1
+	model = "Nuvoton nuc980-iot-psm100 Version: 0.1";
+#else
+	model = "Nuvoton nuc980-iot-psm100 Version: 0.2";
+#endif
+	compatible = "nuvoton,nuc980-dev-v1.0", "nuvoton,nuc980";
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyS0,115200n8 rdinit=/sbin/init mem=128M lpj=744448";
+	};
+	
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <50>;
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_jtag_pg>;
+		
+		key_1 {
+			label = "key_1";
+			gpios = <&gpio NUC980_PD15 GPIO_ACTIVE_LOW>;//PD15 111
+			linux,code = <KEY_TAB>;
+		};
+		
+		key_2 {
+			label = "key_2";
+			gpios = <&gpio NUC980_PG11 GPIO_ACTIVE_LOW>;//PG11
+			linux,code = <KEY_UP>;
+		};
+		
+		key_3 {
+			label = "key_3";
+			gpios = <&gpio NUC980_PG12 GPIO_ACTIVE_LOW>;//PG12
+			linux,code = <KEY_BACKSPACE>;
+		};
+		
+		key_4 {
+			label = "key_4";
+			gpios = <&gpio NUC980_PG13 GPIO_ACTIVE_LOW>;//PG13
+			linux,code = <KEY_DOWN>;
+		};
+		
+		key_5 {
+			label = "key_5";
+			gpios = <&gpio NUC980_PG14 GPIO_ACTIVE_LOW>;//PG14
+			linux,code = <KEY_ESC>;
+		};
+		
+#ifdef PSM100_V0_1
+		/*
+		key_6 {
+			label = "key_6";
+			gpios = <&gpio 32 GPIO_ACTIVE_LOW>;//PB0
+			linux,code = <KEY_TAB>;
+		};
+		*/
+#else
+		key_6 {
+			label = "key_6";
+			gpios = <&gpio NUC980_PB0 GPIO_ACTIVE_LOW>;//PB0
+			linux,code = <KEY_ENTER>;
+		};
+
+#endif
+		
+	};
+
+
+	gpio-leds {
+	
+		compatible = "gpio-leds";
+		status = "okay";
+		
+		phy0_rst {
+			label = "nuc980:ctrl:phy0_rst";
+			gpios = <&gpio 201 GPIO_ACTIVE_LOW>;
+		};
+
+
+		phy1_rst {
+			label = "nuc980:ctrl:phy1_rst";
+			gpios = <&gpio 170 GPIO_ACTIVE_LOW>;
+		};
+
+		
+		rm_rst {
+			label = "nuc980:ctrl:rm_rst";
+			gpios = <&gpio 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		rm_on_off {
+			label = "nuc980:ctrl:rm_on_off";
+			gpios = <&gpio 139 GPIO_ACTIVE_HIGH>;
+		};
+
+		rm_pwr {
+			label = "nuc980:ctrl:rm_pwr";
+			gpios = <&gpio 140 GPIO_ACTIVE_LOW>;
+		};
+		
+#if 0
+		power {
+			label = "nuc980:green:power";
+			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
+		};
+		
+		alarm {
+			label = "nuc980:red:alarm";
+			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
+		};
+#endif
+
+	};
+
+
+
+	apb {
+		uart1: serial@b0071000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart1_PA>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+		
+#ifdef PSM100_V0_1
+		uart2: serial@b0072000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart2_PD>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+#else
+		uart2: serial@b0072000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart2_PA_Lite>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+#endif
+
+		uart3: serial@b0073000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart3_PD_Lite>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+
+		uart4: serial@b0074000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart4_PD_Lite>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+		
+#ifdef PSM100_V0_2
+		uart5: serial@b0075000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart5_PG_Lite>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+#endif
+
+		uart6: serial@b0076000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart6_PA_Lite>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+
+		uart7: serial@b0077000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart7_PB>;
+			pdma-enable = <1>;
+			status = "disabled";
+		};
+
+		uart8: serial@b0078000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart8_PA_Lite>;
+			pdma-enable = <1>;
+			status = "okay";
+		};
+
+		uart9: serial@b0079000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart9_PB_PE>;
+			pdma-enable = <1>;
+			status = "disabled";
+		};
+		
+		wdt: wdt@b0004000 {
+			//status = "okay";//enable nuc980 wdg
+			status = "disabled";//disable nuc980 wdg
+		};
+		
+		can0: can@b00a0000 {
+			status = "disabled";
+		};
+
+		can1: can@b00a1000 {
+			status = "disabled";
+		};
+
+		rtc: rtc@b0041000 {
+			status = "disabled";// disable nuc980 rtc
+		};
+		
+		gpio: gpio@b0004000 {
+			pinctrl-0 = <&pinctrl_gpio>;
+			/* 1st: 0(Disable)/1(Enable) */
+			/* 2nd: 0(PD0)/1(PE10)/2(PB3)/3(PB13) */
+			/* 3rd: 0(both)/1(rasing)/2(falling)/3(heigh level)/4(low level) */
+			eint2-config = <0 2 2>;
+			status = "okay";
+		};
+
+		nadc: nadc@b0043000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nadc_1_2_5_7>;
+			status = "okay";
+		};
+
+		pwm0: pwm0@b0058000 {
+			status = "disabled";
+		};
+
+		pwm1: pwm1@b0059000 {
+			status = "disabled";
+		};
+
+		qspi0: qspi0@b0060000 {
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			
+			#if 1
+			
+			pinctrl-0 = <&pinctrl_qspi0>;
+			//spi-rx-bus-width = <4>;
+			//spi-tx-bus-width = <4>;
+			
+			#else
+			
+			pinctrl-0 = <&pinctrl_qspi0_normal>;
+			
+			#endif
+
+			num_cs  = <1>;
+			lsb	 = <0>;
+			txneg   = <1>;
+			rxneg   = <0>;
+			clkpol  = <0>;
+			divider = <4>;
+			sleep   = <0>;
+			txnum   = <0>;
+			txbitlen = <8>;
+			bus_num = <0>;
+#if 0
+			flash: mt29f@0 {
+				compatible = "mt29f";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0>;
+				spi-max-frequency = <30000000>;
+					
+				partition@0 {
+					label = "reserve";
+					reg = <0x00000000 0x0200000>;
+				};
+				partition@1 {
+					label = "params";
+					reg = <0x0200000 0x1400000>;
+				};
+				partition@2 {
+					label = "usr";
+					reg = <0x1600000 0x6A00000>;
+				};
+			};
+#else
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <30000000>;
+				partition@0 {
+					label = "usr";
+					reg = <0x0 0x1000000>;
+				};
+			};
+#endif	
+		};
+		
+		spi0: spi0@b0061000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi0_cs_pd8_pg15>;
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			num_cs  = <2>;
+			lsb	 = <0>;
+			txneg   = <1>;
+			rxneg   = <0>;
+			clkpol  = <0>;
+			divider = <4>;
+			sleep   = <0>;
+			txnum   = <0>;
+			txbitlen = <8>;
+			bus_num = <1>;
+
+			spidev@0x00 {
+				compatible = "rohm,dh2228fv";
+				spi-max-frequency = <10000000>;
+				reg = <0>;
+			};
+			
+			ili9342@0x01 {
+				compatible = "ilitek,ili9342";
+				reg = <1>;
+				spi-max-frequency = <30000000>;
+				
+				#if 0
+				rotate = <0>;
+				#endif
+				
+				bgr;
+				fps = <30>;
+				buswidth = <8>;
+#ifdef PSM100_V0_1
+				reset-gpios = <&gpio NUC980_PG7 GPIO_ACTIVE_LOW>;
+				dc-gpios = <&gpio NUC980_PG6 GPIO_ACTIVE_LOW>;
+#else
+				reset-gpios = <&gpio 103 GPIO_ACTIVE_LOW>;//PD7 103
+				dc-gpios = <&gpio 102 GPIO_ACTIVE_LOW>;//PD6
+#endif
+				debug = <1>;
+			};
+		};
+
+		spi1: spi1@b0062000 {	
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			num_cs  = <2>;
+			lsb	 = <0>;
+			txneg   = <1>;
+			rxneg   = <0>;
+			clkpol  = <0>;
+			divider = <4>;
+			sleep   = <0>;
+			txnum   = <0>;
+			txbitlen = <8>;
+			bus_num = <2>;
+
+
+			spidev@0x00 {
+				compatible = "rohm,dh2228fv";
+				spi-max-frequency = <33000000>;
+				reg = <0>;
+			};
+			
+		};
+
+		etimer0: etimer0@b0050000 {
+			status = "disabled";
+		};
+
+		etimer1: etimer1@b0050100 {
+			status = "disabled";
+		};
+
+		etimer2: etimer2@b0051000 {
+			status = "disabled";
+		};
+
+		etimer3: etimer3@b0051100 {
+			status = "disabled";
+		};
+
+		i2c0: i2c0@b0080000 {
+			status = "disabled";
+
+			nau8822: nau8822@1a {
+				compatible = "nuvoton,nau8822";
+				reg = <0x1a> ;
+			};
+		};
+
+		i2c1: i2c1@b0081000 {
+			status = "okay";
+			pinctrl-0 = <&pinctrl_i2c1_PB>;
+			#if 0
+			rtc_i2c: rx8025@32 {
+				compatible = "rtc-rx8025";
+				reg = <0x32>;
+				#clock-cells = <0>;
+			};
+			#endif
+		};
+
+		i2c2: i2c2@b0082000 {
+			status = "disabled";
+			pinctrl-0 = <&pinctrl_i2c2_PB>;
+		};
+
+		i2c3: i2c3@b0083000 {
+			status = "disabled";
+			pinctrl-0 = <&pinctrl_i2c3_PB>;
+		};
+
+	};
+
+	ahb {
+
+		usbh_ehci@b0015000 {
+			status = "okay";
+			pinctrl-0 = <&pinctrl_usbh_ovc>;
+			pinctrl-names = "default";
+		};
+		
+		usbh_ohci@b0017000{
+			status = "okay";
+		};
+
+		usbdev@b0016000 {
+			status = "disabled";
+		};
+
+		fmi@b0019000 {
+			compatible = "nuvoton,nuc980-fmi", "nand";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nand>;
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x00000000 0x0200000>;
+			};
+
+			partition@1 {
+				label = "kernel";
+				reg = <0x0200000 0x1400000>;
+			};
+
+			partition@2 {
+				label = "ubi";
+				reg = <0x1600000 0xEA00000>;
+			};
+		};
+
+		sdh@b0018000 {
+			status = "disabled";
+		};
+
+		emac0@b0012000 {
+			status = "okay";
+		};
+		emac1@b0022000 {
+			status = "okay";
+		};
+		cap0@b0024000 {
+			status = "disabled";
+		};
+		cap1@b0014000 {
+			status = "disabled";
+		};
+		dma@b0008000 {
+			status = "okay";
+		};
+
+		i2s: i2s@b0020000 {
+			status = "disabled";
+		};
+
+		i2s_pcm: i2s_pcm {
+			status = "disabled";
+		};
+
+		sound {
+			compatible = "nuvoton,nuc980-audio";
+			i2s-controller = <&i2s>;
+			i2s-platform = <&i2s_pcm>;
+			status = "disabled";
+		};
+		ebi: ebi@b0010000 {
+			status = "disabled";
+		};
+	};
+};

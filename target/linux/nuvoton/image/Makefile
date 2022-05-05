@@ -48,6 +48,7 @@ endef
 # $(4) extra DTC flags
 #define Image/BuildDTB
 #$(if $(wildcard $(KDIR)/$(2).dtb),$(shell cat $(KDIR)/zImage $(KDIR)/$(2).dtb > $(KDIR)/zImage-$(1)))
+
 define MkuImageDtb
 	###MkuImageDtb###
 	$(call Image/BuildDTB,../dts/$(2).dts,$(KDIR)/$(2).dtb)
@@ -77,9 +78,17 @@ endif
 #	if [ $(CONFIG_FLEXIBITY_ROOT) ]; then \
 #		$(INSTALL_BIN) $(BIN_DIR)/$(IMG_PREFIX)-uImage $(TARGET_DIR)/uImage ; \
 #	fi
+
+
 define Image/BuildKernel
 	###Image/BuildKernel###
+	$(call MkuImageDtb,$$(DTS),$$(DTS))
+	
 	$(call MkuImageDtb,nuc980-iot-gateway,nuc980-iot-gateway)
+	$(call MkuImageDtb,nuc980-iot-cm100,nuc980-iot-cm100)
+	$(call MkuImageDtb,nuc980-iot-debian,nuc980-iot-debian)
+	$(call MkuImageDtb,nuc980-iot-psm100,nuc980-iot-psm100)
+	
 endef
 
 
@@ -96,7 +105,7 @@ define Image/Build/SysupgradeCombined
 	$(CP) "$(2)" "$(KDIR_TMP)/sysupgrade-$(4)/root"
 
 	(cd "$(KDIR_TMP)"; $(TAR) cvf \
-		"$(BIN_DIR)/$(IMG_PREFIX)-$(3)-sysupgrade.tar" sysupgrade-$(4) \
+		"$(BIN_DIR)/$(IMG_PREFIX)-$(3)-$(4)-sysupgrade.tar" sysupgrade-$(4) \
 			$(if $(SOURCE_DATE_EPOCH),--mtime="@$(SOURCE_DATE_EPOCH)") \
 	)
 endef
@@ -111,8 +120,11 @@ endef
 #$(CP) $(KDIR)/$(output_name) $(BIN_DIR)/$(output_name)
 define MkImageSysupgrade
 	####MkImageSysupgrade-$(3)####
-	$(call Image/Build/SysupgradeCombined,$(1),$(2),$(3),NUC980-IOT-GateWay)
+	$(call Image/Build/SysupgradeCombined,$(1),$(2),$(3),$$(DTS))
 endef
+
+#$(call MkImageSysupgrade,$(BIN_DIR)/$(IMG_PREFIX)-nuc980-iot-gateway-uImage,$(KDIR)/root.ubifs,ubifs)
+#$(call MkImageSysupgrade,$(BIN_DIR)/$(IMG_PREFIX)-nuc980-iot-gateway-uImage,$(KDIR)/root.squashfs,squashfs)
 
 define Image/Build/ubifs
 	###Image/Build/ubifs###
@@ -121,8 +133,8 @@ define Image/Build/ubifs
 	cp $(KDIR)/root.ubi $(BIN_DIR)/$(IMG_PREFIX)-root-ubi.img
 	cp $(KDIR)/root-overlay.ubi $(BIN_DIR)/$(IMG_PREFIX)-root-overlay-ubi.img
 
-	$(call MkImageSysupgrade,$(BIN_DIR)/$(IMG_PREFIX)-nuc980-iot-gateway-uImage,$(KDIR)/root.ubifs,ubifs)
-	$(call MkImageSysupgrade,$(BIN_DIR)/$(IMG_PREFIX)-nuc980-iot-gateway-uImage,$(KDIR)/root.squashfs,squashfs)
+	$(call MkImageSysupgrade,$(BIN_DIR)/$(IMG_PREFIX)-$$(DTS)-uImage,$(KDIR)/root.ubifs,ubifs)
+	$(call MkImageSysupgrade,$(BIN_DIR)/$(IMG_PREFIX)-$$(DTS)-uImage,$(KDIR)/root.squashfs,squashfs)
 endef
 
 define Image/Build

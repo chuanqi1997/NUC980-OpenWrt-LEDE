@@ -43,7 +43,17 @@
 		pinctrl: pinctrl@b0000000 {
 			compatible = "nuvoton,nuc980-pinctrl";
 			status = "okay";
-
+			
+			pg_jtag {
+				pinctrl_gpio_jtag_pg: gpio-PG {
+					nuvoton,pins =
+						<6 0xb 0 0
+						 6 0xc 0 0
+						 6 0xd 0 0
+						 6 0xe 0 0>;
+				};
+			};
+			
 			uart0 {
 				pinctrl_uart0_PF: uart0-PF {
 					nuvoton,pins =
@@ -84,7 +94,14 @@
 						 0 9 2 0
 						 0 0xa 2 0>;
 				};
-
+				
+				pinctrl_uart2_PA_Lite: uart2-PA-lite {
+					nuvoton,pins =
+						<
+						 0 9 2 0
+						 0 0xa 2 0>;
+				};
+				
 				pinctrl_uart2_PG: uart2-PG {
 					nuvoton,pins =
 						<6 0 2 0
@@ -124,7 +141,13 @@
 						 3 4 2 0
 						 3 5 2 0>;
 				};
-
+				
+				pinctrl_uart3_PD_Lite: uart3-PD-lite {
+					nuvoton,pins =
+						<3 2 2 0
+						 3 3 2 0>;
+				};
+				
 				pinctrl_uart3_PF: uart3-PF {
 					nuvoton,pins =
 						<5 4 5 0
@@ -149,6 +172,13 @@
 			};
 
 			uart4 {
+			
+				pinctrl_uart4_PD_Lite: uart4-PD-L {
+					nuvoton,pins =
+						<3 0xc 1 0
+						 3 0xd 1 0>;
+				};
+				
 				pinctrl_uart4_PD: uart4-PD {
 					nuvoton,pins =
 						<3 0xc 1 0
@@ -173,6 +203,14 @@
 			};
 
 			uart5 {
+			
+				pinctrl_uart5_PG_Lite: uart5-PG-L {
+					nuvoton,pins =
+						<
+						 6 6 2 0
+						 6 7 2 0>;
+				};
+			
 				pinctrl_uart5_PG: uart5-PG {
 					nuvoton,pins =
 						<6 4 2 0
@@ -197,6 +235,13 @@
 			};
 
 			uart6 {
+			
+				pinctrl_uart6_PA_Lite: uart6-PA-L {
+					nuvoton,pins =
+						<0 4 1 0
+						 0 5 1 0>;
+				};
+			
 				pinctrl_uart6_PA: uart6-PA {
 					nuvoton,pins =
 						<0 2 1 0
@@ -251,6 +296,13 @@
 			};
 
 			uart8 {
+			
+				pinctrl_uart8_PA_Lite: uart8-PA-l {
+					nuvoton,pins =
+						<0 0xb 2 0
+						 0 0xc 2 0>;
+				};
+			
 				pinctrl_uart8_PA_PG: uart8-PA-PG {
 					nuvoton,pins =
 						<0 0xb 2 0
@@ -687,6 +739,18 @@
 						 //1 0x7 0x8 0
 						>;
 				};
+				pinctrl_nadc_1_2_5_7: nadc_1257 {
+					nuvoton,pins =
+						<//1 0x0 0x8 0
+						 1 0x1 0x8 0
+						 1 0x2 0x8 0
+						 //1 0x3 0x8 0
+						 //1 0x4 0x8 0
+						 1 0x5 0x8 0
+						 //1 0x6 0x8 0
+						 1 0x7 0x8 0
+						>;
+				};
 			};
 
 			qspi0 {
@@ -700,15 +764,33 @@
 						 3 0x7 0x1 0
 						>;
 				};
+				pinctrl_qspi0_normal: qspi0_normal {
+					nuvoton,pins =
+						<3 0x2 0x1 0
+						 3 0x3 0x1 0
+						 3 0x4 0x1 0
+						 3 0x5 0x1 0
+						>;
+				};
 			};
 
 			spi0 {
-				pinctrl_spi0: spi0 {
+			
+				pinctrl_spi0: spi0_cs_pd8 {
 					nuvoton,pins =
 						<3 0x8 0x1 0
 						 3 0x9 0x1 0
 						 3 0xA 0x1 0
 						 3 0xB 0x1 0
+						>;
+				};
+				pinctrl_spi0_cs_pd8_pg15: spi0_cs_pd8_pg15 {
+					nuvoton,pins =
+						<3 0x8 0x1 0
+						 3 0x9 0x1 0
+						 3 0xA 0x1 0
+						 3 0xB 0x1 0
+						 6 0xF 0x1 0
 						>;
 				};
 			};
@@ -756,9 +838,9 @@
 						 //0 0x1 0x5 0	 /* eint1_A1 */
 						 //0 0xE 0x6 0	 /* eint1_A14 */
 
-						 3 0x0 0x4 0   /* eint2_D0 */
+						 //3 0x0 0x4 0   /* eint2_D0 */
 						 //4 0xA 0x5 0	 /* eint2_E10 */
-						 //1 0x3 0x3 0	 /* eint2_B3 */
+						 1 0x3 0x3 0	 /* eint2_B3 */
 						 //1 0xD 0x2 0	 /* eint2_B13 */
 
 						 //3 0x3 0x4 0   /* eint3_D1 */
@@ -1943,17 +2025,17 @@
 			compatible = "nuvoton,nuc980-crypto";
 			reg = <0xb001c000 0x1000>;
 			interrupts = <35 4 1>;
-			status = "okay";
+			status = "disabled";
 		};
 
 		crypto_raw {                                 /* Important note! Must also enable crypto@b001c000 */
 			compatible = "nuvoton,nuc980-crypto-raw";
-			status = "okay";
+			status = "disabled";
 		};
 
 		crypto_prng {                                /* Important note! Must also enable crypto@b001c000 */
 			compatible = "nuvoton,nuvoton-rng";
-			status = "okay";
+			status = "disabled";
 		};
 
 		emac0@b0012000 {
