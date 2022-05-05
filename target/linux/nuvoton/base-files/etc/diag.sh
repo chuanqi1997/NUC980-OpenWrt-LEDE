@@ -9,7 +9,9 @@ get_status_led() {
 
 	case $board in
 
-	NUC980-IOT-GateWay)
+	nuc980-iot-gateway|\
+	nuc980-iot-cm100|\
+	nuc980-iot-psm100)
 		status_led="nuc980:green:power"
 		;;
 

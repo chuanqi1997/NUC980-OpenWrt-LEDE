@@ -1,0 +1,82 @@
+diff -uprN linux-4.4.194/drivers/gpio/gpio-nuc980.c NUC980-linux-4.4.y-master/drivers/gpio/gpio-nuc980.c
+--- linux-4.4.194/drivers/gpio/gpio-nuc980.c	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/gpio/gpio-nuc980.c	2021-06-20 19:14:48.000000000 -0700
+@@ -108,15 +108,16 @@ static int nuc980_gpio_core_direction_in
+ {
+ 	int port_num,group_num;
+ 	unsigned long value;
++	unsigned long flags;
+ 	const struct gpio_port *port =
+ 	        nuc980_gpio_cla_port(gpio_num, &group_num, &port_num);
+ 	ENTRY();
+-	spin_lock(&gpio_lock);
++	spin_lock_irqsave(&gpio_lock, flags);
+ 	value = __raw_readl(port->dir);
+ 	value &= ~GPIO_PMD_MODE(port_num,GPIO_PMD_QUASI);
+ 	value |= GPIO_PMD_MODE(port_num,GPIO_PMD_INPUT);
+ 	__raw_writel(value, port->dir);
+-	spin_unlock(&gpio_lock);
++	spin_unlock_irqrestore(&gpio_lock, flags);
+ 	LEAVE();
+ 	return 0;
+ }
+@@ -147,15 +148,16 @@ static int nuc980_gpio_core_direction_ou
+ {
+ 	int port_num,group_num;
+ 	unsigned long value;
++	unsigned long flags;
+ 	const struct gpio_port *port =
+ 	        nuc980_gpio_cla_port(gpio_num, &group_num, &port_num);
+ 	ENTRY();
+-	spin_lock(&gpio_lock);
++	spin_lock_irqsave(&gpio_lock, flags);
+ 	value = __raw_readl(port->dir);
+ 	value &= ~GPIO_PMD_MODE(port_num,GPIO_PMD_QUASI);
+ 	value |= GPIO_PMD_MODE(port_num,GPIO_PMD_OUTPUT);
+ 	__raw_writel(value, port->dir);
+-	spin_unlock(&gpio_lock);
++	spin_unlock_irqrestore(&gpio_lock, flags);
+ 	nuc980_gpio_core_set(gc, gpio_num, val);
+ 	LEAVE();
+ 	return 0;
+@@ -585,7 +587,7 @@ static int nuc980_enable_eint(uint32_t f
+ 			irqnum = IRQ_EXT3_G15;
+ 
+ 		irqflag=trigger_type[val32[2]]|IRQF_NO_SUSPEND;
+-		if(flag==3) {
++		if(flag==1) {
+ 			__raw_writel((1<<7) | __raw_readl(REG_WKUPSER0),REG_WKUPSER0);
+ 			enable_irq_wake(irqnum);
+ 		}
+@@ -605,6 +607,8 @@ static int nuc980_gpio_probe(struct plat
+ 
+ #ifndef CONFIG_USE_OF
+ 	if(pdev->id == 0)
++#else
++	struct device_node *np = pdev->dev.of_node;
+ #endif
+ 	{
+ 		printk("%s - pdev = %s\n", __func__, pdev->name);
+@@ -617,7 +621,9 @@ static int nuc980_gpio_probe(struct plat
+ 		}
+ 		clk_prepare(clk);
+ 		clk_enable(clk);
+-
++#ifdef CONFIG_USE_OF
++		irq_domain_add_legacy(np, IRQ_GPIO_END-IRQ_GPIO_START, IRQ_GPIO_START, 0,&irq_domain_simple_ops, NULL);
++#endif
+ 		nuc980_gpio_port.dev = &pdev->dev;
+ 		err = gpiochip_add(&nuc980_gpio_port);
+ 		if (err < 0) {
+diff -uprN linux-4.4.194/drivers/gpio/gpio-syscon.c NUC980-linux-4.4.y-master/drivers/gpio/gpio-syscon.c
+--- linux-4.4.194/drivers/gpio/gpio-syscon.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/gpio/gpio-syscon.c	2021-06-20 19:14:48.000000000 -0700
+@@ -127,7 +127,7 @@ static int syscon_gpio_dir_out(struct gp
+ 				   BIT(offs % SYSCON_REG_BITS));
+ 	}
+ 
+-	priv->data->set(chip, offset, val);
++	chip->set(chip, offset, val);
+ 
+ 	return 0;
+ }

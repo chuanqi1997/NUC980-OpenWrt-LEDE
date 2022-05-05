@@ -1,0 +1,366 @@
+diff -uprN linux-4.4.194/drivers/tty/serial/ifx6x60.c NUC980-linux-4.4.y-master/drivers/tty/serial/ifx6x60.c
+--- linux-4.4.194/drivers/tty/serial/ifx6x60.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/ifx6x60.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1241,6 +1241,9 @@ static int ifx_spi_spi_remove(struct spi
+ 	struct ifx_spi_device *ifx_dev = spi_get_drvdata(spi);
+ 	/* stop activity */
+ 	tasklet_kill(&ifx_dev->io_work_tasklet);
++
++	pm_runtime_disable(&spi->dev);
++
+ 	/* free irq */
+ 	free_irq(gpio_to_irq(ifx_dev->gpio.reset_out), ifx_dev);
+ 	free_irq(gpio_to_irq(ifx_dev->gpio.srdy), ifx_dev);
+diff -uprN linux-4.4.194/drivers/tty/serial/imx.c NUC980-linux-4.4.y-master/drivers/tty/serial/imx.c
+--- linux-4.4.194/drivers/tty/serial/imx.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/imx.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1784,7 +1784,7 @@ imx_console_setup(struct console *co, ch
+ 
+ 	retval = clk_prepare(sport->clk_per);
+ 	if (retval)
+-		clk_disable_unprepare(sport->clk_ipg);
++		clk_unprepare(sport->clk_ipg);
+ 
+ error_console:
+ 	return retval;
+diff -uprN linux-4.4.194/drivers/tty/serial/Kconfig NUC980-linux-4.4.y-master/drivers/tty/serial/Kconfig
+--- linux-4.4.194/drivers/tty/serial/Kconfig	2021-08-05 23:48:46.571220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/Kconfig	2021-06-20 19:14:48.000000000 -0700
+@@ -324,7 +324,7 @@ choice
+ endchoice
+ 
+ config NUC980_UART8
+-	bool "NUC970 UART8 support"
++	bool "NUC980 UART8 support"
+ 	depends on SERIAL_NUC980=y
+ 	help
+ 	  This selects NUC980 uart8 driver
+@@ -347,6 +347,7 @@ choice
+ 	default NUC980_UART8_PA
+ 	depends on NUC980_UART8
+ 	depends on !USE_OF
++	
+ 	help
+ 	  Select UART8 multi-function pin.
+ 
+@@ -359,7 +360,11 @@ choice
+ 	config NUC980_UART8_FC_PA_PG
+ 		bool "Rx:PA11, Tx:PA12, RTS:PG8, CTS:PG9"
+ 	config NUC980_UART8_FC_PC
++		depends on !BOARD_CHILI
+ 		bool "Rx:PC13, Tx:PC12, RTS:PC14, CTS:PC15"
++	config NUC980_UART8_FC_PC_CHILI
++		depends on BOARD_CHILI
++		bool "Rx:PC13, Tx:PC12, RTS:PC14"
+ endchoice
+ 
+ config NUC980_UART9
+diff -uprN linux-4.4.194/drivers/tty/serial/max310x.c NUC980-linux-4.4.y-master/drivers/tty/serial/max310x.c
+--- linux-4.4.194/drivers/tty/serial/max310x.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/max310x.c	2021-06-20 19:14:48.000000000 -0700
+@@ -763,12 +763,9 @@ static void max310x_start_tx(struct uart
+ 
+ static unsigned int max310x_tx_empty(struct uart_port *port)
+ {
+-	unsigned int lvl, sts;
++	u8 lvl = max310x_port_read(port, MAX310X_TXFIFOLVL_REG);
+ 
+-	lvl = max310x_port_read(port, MAX310X_TXFIFOLVL_REG);
+-	sts = max310x_port_read(port, MAX310X_IRQSTS_REG);
+-
+-	return ((sts & MAX310X_IRQ_TXEMPTY_BIT) && !lvl) ? TIOCSER_TEMT : 0;
++	return lvl ? 0 : TIOCSER_TEMT;
+ }
+ 
+ static unsigned int max310x_get_mctrl(struct uart_port *port)
+diff -uprN linux-4.4.194/drivers/tty/serial/msm_serial.c NUC980-linux-4.4.y-master/drivers/tty/serial/msm_serial.c
+--- linux-4.4.194/drivers/tty/serial/msm_serial.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/msm_serial.c	2021-06-20 19:14:48.000000000 -0700
+@@ -823,6 +823,7 @@ static unsigned int msm_get_mctrl(struct
+ static void msm_reset(struct uart_port *port)
+ {
+ 	struct msm_port *msm_port = UART_TO_MSM(port);
++	unsigned int mr;
+ 
+ 	/* reset everything */
+ 	msm_write(port, UART_CR_CMD_RESET_RX, UART_CR);
+@@ -830,7 +831,10 @@ static void msm_reset(struct uart_port *
+ 	msm_write(port, UART_CR_CMD_RESET_ERR, UART_CR);
+ 	msm_write(port, UART_CR_CMD_RESET_BREAK_INT, UART_CR);
+ 	msm_write(port, UART_CR_CMD_RESET_CTS, UART_CR);
+-	msm_write(port, UART_CR_CMD_SET_RFR, UART_CR);
++	msm_write(port, UART_CR_CMD_RESET_RFR, UART_CR);
++	mr = msm_read(port, UART_MR1);
++	mr &= ~UART_MR1_RX_RDY_CTL;
++	msm_write(port, mr, UART_MR1);
+ 
+ 	/* Disable DM modes */
+ 	if (msm_port->is_uartdm)
+diff -uprN linux-4.4.194/drivers/tty/serial/mxs-auart.c NUC980-linux-4.4.y-master/drivers/tty/serial/mxs-auart.c
+--- linux-4.4.194/drivers/tty/serial/mxs-auart.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/mxs-auart.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1248,8 +1248,9 @@ static int mxs_auart_request_gpio_irq(st
+ 
+ 	/*
+ 	 * If something went wrong, rollback.
++	 * Be careful: i may be unsigned.
+ 	 */
+-	while (err && (--i >= 0))
++	while (err && (i-- > 0))
+ 		if (irq[i] >= 0)
+ 			free_irq(irq[i], s);
+ 
+diff -uprN linux-4.4.194/drivers/tty/serial/nuc980_serial.c NUC980-linux-4.4.y-master/drivers/tty/serial/nuc980_serial.c
+--- linux-4.4.194/drivers/tty/serial/nuc980_serial.c	2021-08-05 23:48:46.571220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/nuc980_serial.c	2021-06-20 19:14:48.000000000 -0700
+@@ -96,6 +96,7 @@ struct uart_nuc980_port {
+ 	unsigned int tx_dma_len;
+ 
+ 	unsigned char uart_pdma_enable_flag;
++	unsigned char pdma_baud_rate_set_flag;
+ 	unsigned char Tx_pdma_busy_flag;
+ 
+ 	unsigned int pdma_time_out_prescaler;
+@@ -206,6 +207,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART1_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 1) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART1_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART1_TX;
+ 	}
+@@ -214,6 +216,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART2_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 2) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART2_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART2_TX;
+ 	}
+@@ -222,6 +225,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART3_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 3) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART3_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART3_TX;
+ 	}
+@@ -230,6 +234,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART4_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 4) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART4_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART4_TX;
+ 	}
+@@ -238,6 +243,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART5_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 5) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART5_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART5_TX;
+ 	}
+@@ -246,6 +252,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART6_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 6) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART6_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART6_TX;
+ 	}
+@@ -254,6 +261,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART7_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 7) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART7_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART7_TX;
+ 	}
+@@ -262,6 +270,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART8_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 8) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART8_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART8_TX;
+ 	}
+@@ -270,6 +279,7 @@ static void set_pdma_flag(struct uart_nu
+ #if defined(CONFIG_ENABLE_UART9_PDMA) || defined(CONFIG_USE_OF)
+ 	if(id == 9) {
+ 		p->uart_pdma_enable_flag = 1;
++		p->pdma_baud_rate_set_flag = 0;
+ 		p->PDMA_UARTx_RX = PDMA_UART9_RX;
+ 		p->PDMA_UARTx_TX = PDMA_UART9_TX;
+ 	}
+@@ -936,6 +946,8 @@ static void nuc980serial_shutdown(struct
+ 
+ #if defined(CONFIG_ENABLE_UART_PDMA) || defined(CONFIG_USE_OF)
+ 	if(up->uart_pdma_enable_flag == 1) {
++		up->pdma_baud_rate_set_flag = 0;
++
+ 		dma_release_channel(pdma_rx->chan_rx);
+ 		dma_release_channel(pdma_tx->chan_tx);
+ 
+@@ -1055,19 +1067,18 @@ nuc980serial_set_termios(struct uart_por
+ 	spin_unlock_irqrestore(&up->port.lock, flags);
+ 
+ #if defined(CONFIG_ENABLE_UART_PDMA) || defined(CONFIG_USE_OF)
+-	if(up->uart_pdma_enable_flag == 1) {
+-		if(up->baud_rate != baud){
+-			up->baud_rate = baud;
++	if((up->uart_pdma_enable_flag == 1) && (up->pdma_baud_rate_set_flag != 1)) {
++		up->pdma_baud_rate_set_flag = 1;
++		up->baud_rate = baud;
+ 
+-			nuc980_uart_cal_pdma_time_out(up, baud);
++		nuc980_uart_cal_pdma_time_out(up, baud);
+ 
+-			nuc980_prepare_RX_dma(up);
++		nuc980_prepare_RX_dma(up);
+ 
+-			nuc980_prepare_TX_dma(up);
++		nuc980_prepare_TX_dma(up);
+ 
+-			// trigger pdma
+-			serial_out(up, UART_REG_IER, (serial_in(up, UART_REG_IER)|RXPDMAEN));
+-		}
++		// trigger pdma
++		serial_out(up, UART_REG_IER, (serial_in(up, UART_REG_IER)|RXPDMAEN));
+ 	}
+ #endif
+ }
+@@ -1510,7 +1521,7 @@ static int nuc980serial_pinctrl(struct p
+ 		p = devm_pinctrl_get_select(&pdev->dev, "uart8-PC");
+ #elif defined (CONFIG_NUC980_UART8_FC_PA_PG)
+ 		p = devm_pinctrl_get_select(&pdev->dev, "uart8-fc-PA_PG");
+-#elif defined (CONFIG_NUC980_UART8_FC_PC)
++#elif defined (CONFIG_NUC980_UART8_FC_PC) || defined (CONFIG_NUC980_UART8_FC_PC_CHILI)
+ 		p = devm_pinctrl_get_select(&pdev->dev, "uart8-fc-PC");
+ #endif
+ 
+diff -uprN linux-4.4.194/drivers/tty/serial/sc16is7xx.c NUC980-linux-4.4.y-master/drivers/tty/serial/sc16is7xx.c
+--- linux-4.4.194/drivers/tty/serial/sc16is7xx.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/sc16is7xx.c	2021-06-20 19:14:48.000000000 -0700
+@@ -332,6 +332,7 @@ struct sc16is7xx_port {
+ 	struct kthread_worker		kworker;
+ 	struct task_struct		*kworker_task;
+ 	struct kthread_work		irq_work;
++	struct mutex			efr_lock;
+ 	struct sc16is7xx_one		p[0];
+ };
+ 
+@@ -496,6 +497,21 @@ static int sc16is7xx_set_baud(struct uar
+ 		div /= 4;
+ 	}
+ 
++	/* In an amazing feat of design, the Enhanced Features Register shares
++	 * the address of the Interrupt Identification Register, and is
++	 * switched in by writing a magic value (0xbf) to the Line Control
++	 * Register. Any interrupt firing during this time will see the EFR
++	 * where it expects the IIR to be, leading to "Unexpected interrupt"
++	 * messages.
++	 *
++	 * Prevent this possibility by claiming a mutex while accessing the
++	 * EFR, and claiming the same mutex from within the interrupt handler.
++	 * This is similar to disabling the interrupt, but that doesn't work
++	 * because the bulk of the interrupt processing is run as a workqueue
++	 * job in thread context.
++	 */
++	mutex_lock(&s->efr_lock);
++
+ 	lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
+ 
+ 	/* Open the LCR divisors for configuration */
+@@ -511,6 +527,8 @@ static int sc16is7xx_set_baud(struct uar
+ 	/* Put LCR back to the normal mode */
+ 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
+ 
++	mutex_unlock(&s->efr_lock);
++
+ 	sc16is7xx_port_update(port, SC16IS7XX_MCR_REG,
+ 			      SC16IS7XX_MCR_CLKSEL_BIT,
+ 			      prescaler);
+@@ -693,6 +711,8 @@ static void sc16is7xx_ist(struct kthread
+ {
+ 	struct sc16is7xx_port *s = to_sc16is7xx_port(ws, irq_work);
+ 
++	mutex_lock(&s->efr_lock);
++
+ 	while (1) {
+ 		bool keep_polling = false;
+ 		int i;
+@@ -702,6 +722,8 @@ static void sc16is7xx_ist(struct kthread
+ 		if (!keep_polling)
+ 			break;
+ 	}
++
++	mutex_unlock(&s->efr_lock);
+ }
+ 
+ static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
+@@ -888,6 +910,9 @@ static void sc16is7xx_set_termios(struct
+ 	if (!(termios->c_cflag & CREAD))
+ 		port->ignore_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
+ 
++	/* As above, claim the mutex while accessing the EFR. */
++	mutex_lock(&s->efr_lock);
++
+ 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
+ 			     SC16IS7XX_LCR_CONF_MODE_B);
+ 
+@@ -909,6 +934,8 @@ static void sc16is7xx_set_termios(struct
+ 	/* Update LCR register */
+ 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
+ 
++	mutex_unlock(&s->efr_lock);
++
+ 	/* Get baud rate generator configuration */
+ 	baud = uart_get_baud_rate(port, termios, old,
+ 				  port->uartclk / 16 / 4 / 0xffff,
+@@ -1172,6 +1199,7 @@ static int sc16is7xx_probe(struct device
+ 	s->regmap = regmap;
+ 	s->devtype = devtype;
+ 	dev_set_drvdata(dev, s);
++	mutex_init(&s->efr_lock);
+ 
+ 	init_kthread_worker(&s->kworker);
+ 	init_kthread_work(&s->irq_work, sc16is7xx_ist);
+diff -uprN linux-4.4.194/drivers/tty/serial/serial_core.c NUC980-linux-4.4.y-master/drivers/tty/serial/serial_core.c
+--- linux-4.4.194/drivers/tty/serial/serial_core.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/serial_core.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1015,7 +1015,7 @@ static int uart_break_ctl(struct tty_str
+ 
+ 	mutex_lock(&port->mutex);
+ 
+-	if (uport->type != PORT_UNKNOWN)
++	if (uport->type != PORT_UNKNOWN && uport->ops->break_ctl)
+ 		uport->ops->break_ctl(uport, break_state);
+ 
+ 	mutex_unlock(&port->mutex);
+diff -uprN linux-4.4.194/drivers/tty/serial/serial_mctrl_gpio.c NUC980-linux-4.4.y-master/drivers/tty/serial/serial_mctrl_gpio.c
+--- linux-4.4.194/drivers/tty/serial/serial_mctrl_gpio.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/serial_mctrl_gpio.c	2021-06-20 19:14:48.000000000 -0700
+@@ -67,6 +67,9 @@ EXPORT_SYMBOL_GPL(mctrl_gpio_set);
+ struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
+ 				      enum mctrl_gpio_idx gidx)
+ {
++	if (gpios == NULL)
++		return NULL;
++
+ 	return gpios->gpio[gidx];
+ }
+ EXPORT_SYMBOL_GPL(mctrl_gpio_to_gpiod);
+diff -uprN linux-4.4.194/drivers/tty/serial/uartlite.c NUC980-linux-4.4.y-master/drivers/tty/serial/uartlite.c
+--- linux-4.4.194/drivers/tty/serial/uartlite.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/tty/serial/uartlite.c	2021-06-20 19:14:48.000000000 -0700
+@@ -701,7 +701,8 @@ err_uart:
+ static void __exit ulite_exit(void)
+ {
+ 	platform_driver_unregister(&ulite_platform_driver);
+-	uart_unregister_driver(&ulite_uart_driver);
++	if (ulite_uart_driver.state)
++		uart_unregister_driver(&ulite_uart_driver);
+ }
+ 
+ module_init(ulite_init);

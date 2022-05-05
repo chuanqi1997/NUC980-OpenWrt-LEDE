@@ -15,8 +15,14 @@ nuc980_board_detect() {
 	#machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /Hardware/ {print $2}' /proc/cpuinfo)
 
 	case "$machine" in
-	*"NUC980 IOT-GateWay"*)
-		name="NUC980-IOT-GateWay"
+	*"nuc980-iot-gateway"*)
+		name="nuc980-iot-gateway"
+		;;
+	*"nuc980-iot-cm100"*)
+		name="nuc980-iot-cm100"
+		;;
+	*"nuc980-iot-psm100"*)
+		name="nuc980-iot-psm100"
 		;;
 	esac
 

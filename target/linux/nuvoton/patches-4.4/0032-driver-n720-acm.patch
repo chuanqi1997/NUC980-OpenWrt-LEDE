@@ -1,0 +1,13 @@
+--- a/drivers/usb/class/cdc-acm.c	2019-09-20 22:12:54.000000000 -0700
++++ b/drivers/usb/class/cdc-acm.c	2022-01-17 18:37:01.551478992 -0800
+@@ -1915,7 +1915,9 @@ static const struct usb_device_id acm_id
+ 	{ USB_DEVICE(0x1519, 0x0452), /* Intel 7260 modem */
+ 	.driver_info = SEND_ZERO_PACKET,
+ 	},
+-
++	/* for Neoway N720 */
++	{ USB_DEVICE(0x2949, 0x8700) },
++	{ USB_DEVICE(0x3c93, 0xffff) },
+ 	{ }
+ };
+ 

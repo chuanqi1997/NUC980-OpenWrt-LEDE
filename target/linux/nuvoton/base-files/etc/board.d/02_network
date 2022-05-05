@@ -10,9 +10,15 @@ board_config_update
 
 case "$(nuc980_board_name)" in
 
-NUC980-IOT-GateWay)
-	ucidef_set_interfaces_lan_wan "eth0" "eth1"
+nuc980-iot-gateway)
+	ucidef_set_interface_lan "eth0"
 	;;
+	
+nuc980-iot-cm100|\
+nuc980-iot-psm100)
+	ucidef_set_interfaces_lan_wan "eth1" "eth0"
+	;;
+	
 *)
 	ucidef_set_interface_lan "eth0"
 	;;

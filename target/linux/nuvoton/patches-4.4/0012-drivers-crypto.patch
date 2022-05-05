@@ -1,0 +1,279 @@
+diff -uprN linux-4.4.194/drivers/crypto/amcc/crypto4xx_core.c NUC980-linux-4.4.y-master/drivers/crypto/amcc/crypto4xx_core.c
+--- linux-4.4.194/drivers/crypto/amcc/crypto4xx_core.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/crypto/amcc/crypto4xx_core.c	2021-06-20 19:14:48.000000000 -0700
+@@ -399,12 +399,8 @@ static u32 crypto4xx_build_sdr(struct cr
+ 		dma_alloc_coherent(dev->core_dev->device,
+ 			dev->scatter_buffer_size * PPC4XX_NUM_SD,
+ 			&dev->scatter_buffer_pa, GFP_ATOMIC);
+-	if (!dev->scatter_buffer_va) {
+-		dma_free_coherent(dev->core_dev->device,
+-				  sizeof(struct ce_sd) * PPC4XX_NUM_SD,
+-				  dev->sdr, dev->sdr_pa);
++	if (!dev->scatter_buffer_va)
+ 		return -ENOMEM;
+-	}
+ 
+ 	sd_array = dev->sdr;
+ 
+diff -uprN linux-4.4.194/drivers/crypto/caam/caamalg.c NUC980-linux-4.4.y-master/drivers/crypto/caam/caamalg.c
+--- linux-4.4.194/drivers/crypto/caam/caamalg.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/crypto/caam/caamalg.c	2021-06-20 19:14:48.000000000 -0700
+@@ -75,7 +75,7 @@
+ #define DESC_AEAD_BASE			(4 * CAAM_CMD_SZ)
+ #define DESC_AEAD_ENC_LEN		(DESC_AEAD_BASE + 11 * CAAM_CMD_SZ)
+ #define DESC_AEAD_DEC_LEN		(DESC_AEAD_BASE + 15 * CAAM_CMD_SZ)
+-#define DESC_AEAD_GIVENC_LEN		(DESC_AEAD_ENC_LEN + 9 * CAAM_CMD_SZ)
++#define DESC_AEAD_GIVENC_LEN		(DESC_AEAD_ENC_LEN + 10 * CAAM_CMD_SZ)
+ 
+ /* Note: Nonce is counted in enckeylen */
+ #define DESC_AEAD_CTR_RFC3686_LEN	(4 * CAAM_CMD_SZ)
+@@ -437,6 +437,7 @@ static int aead_set_sh_desc(struct crypt
+ 	u32 geniv, moveiv;
+ 	u32 ctx1_iv_off = 0;
+ 	u32 *desc;
++	u32 *wait_cmd;
+ 	const bool ctr_mode = ((ctx->class1_alg_type & OP_ALG_AAI_MASK) ==
+ 			       OP_ALG_AAI_CTR_MOD128);
+ 	const bool is_rfc3686 = alg->caam.rfc3686;
+@@ -702,6 +703,14 @@ copy_iv:
+ 
+ 	/* Will read cryptlen */
+ 	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
++
++	/*
++	 * Wait for IV transfer (ofifo -> class2) to finish before starting
++	 * ciphertext transfer (ofifo -> external memory).
++	 */
++	wait_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL | JUMP_COND_NIFP);
++	set_jump_tgt_here(desc, wait_cmd);
++
+ 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_BOTH | KEY_VLF |
+ 			     FIFOLD_TYPE_MSG1OUT2 | FIFOLD_TYPE_LASTBOTH);
+ 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);
+diff -uprN linux-4.4.194/drivers/crypto/Kconfig NUC980-linux-4.4.y-master/drivers/crypto/Kconfig
+--- linux-4.4.194/drivers/crypto/Kconfig	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/crypto/Kconfig	2021-06-20 19:14:48.000000000 -0700
+@@ -163,7 +163,6 @@ config CRYPTO_DEV_MV_CESA
+ 	tristate "Marvell's Cryptographic Engine"
+ 	depends on PLAT_ORION
+ 	select CRYPTO_AES
+-	select CRYPTO_HASH2
+ 	select CRYPTO_BLKCIPHER
+ 	select CRYPTO_HASH
+ 	select SRAM
+diff -uprN linux-4.4.194/drivers/crypto/mxs-dcp.c NUC980-linux-4.4.y-master/drivers/crypto/mxs-dcp.c
+--- linux-4.4.194/drivers/crypto/mxs-dcp.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/crypto/mxs-dcp.c	2021-06-20 19:14:48.000000000 -0700
+@@ -28,9 +28,24 @@
+ 
+ #define DCP_MAX_CHANS	4
+ #define DCP_BUF_SZ	PAGE_SIZE
++#define DCP_SHA_PAY_SZ  64
+ 
+ #define DCP_ALIGNMENT	64
+ 
++/*
++ * Null hashes to align with hw behavior on imx6sl and ull
++ * these are flipped for consistency with hw output
++ */
++const uint8_t sha1_null_hash[] =
++	"\x09\x07\xd8\xaf\x90\x18\x60\x95\xef\xbf"
++	"\x55\x32\x0d\x4b\x6b\x5e\xee\xa3\x39\xda";
++
++const uint8_t sha256_null_hash[] =
++	"\x55\xb8\x52\x78\x1b\x99\x95\xa4"
++	"\x4c\x93\x9b\x64\xe4\x41\xae\x27"
++	"\x24\xb9\x6f\x99\xc8\xf4\xfb\x9a"
++	"\x14\x1c\xfc\x98\x42\xc4\xb0\xe3";
++
+ /* DCP DMA descriptor. */
+ struct dcp_dma_desc {
+ 	uint32_t	next_cmd_addr;
+@@ -48,6 +63,7 @@ struct dcp_coherent_block {
+ 	uint8_t			aes_in_buf[DCP_BUF_SZ];
+ 	uint8_t			aes_out_buf[DCP_BUF_SZ];
+ 	uint8_t			sha_in_buf[DCP_BUF_SZ];
++	uint8_t			sha_out_buf[DCP_SHA_PAY_SZ];
+ 
+ 	uint8_t			aes_key[2 * AES_KEYSIZE_128];
+ 
+@@ -209,6 +225,12 @@ static int mxs_dcp_run_aes(struct dcp_as
+ 	dma_addr_t dst_phys = dma_map_single(sdcp->dev, sdcp->coh->aes_out_buf,
+ 					     DCP_BUF_SZ, DMA_FROM_DEVICE);
+ 
++	if (actx->fill % AES_BLOCK_SIZE) {
++		dev_err(sdcp->dev, "Invalid block size!\n");
++		ret = -EINVAL;
++		goto aes_done_run;
++	}
++
+ 	/* Fill in the DMA descriptor. */
+ 	desc->control0 = MXS_DCP_CONTROL0_DECR_SEMAPHORE |
+ 		    MXS_DCP_CONTROL0_INTERRUPT |
+@@ -238,6 +260,7 @@ static int mxs_dcp_run_aes(struct dcp_as
+ 
+ 	ret = mxs_dcp_start_dma(actx);
+ 
++aes_done_run:
+ 	dma_unmap_single(sdcp->dev, key_phys, 2 * AES_KEYSIZE_128,
+ 			 DMA_TO_DEVICE);
+ 	dma_unmap_single(sdcp->dev, src_phys, DCP_BUF_SZ, DMA_TO_DEVICE);
+@@ -264,13 +287,15 @@ static int mxs_dcp_aes_block_crypt(struc
+ 
+ 	uint8_t *out_tmp, *src_buf, *dst_buf = NULL;
+ 	uint32_t dst_off = 0;
++	uint32_t last_out_len = 0;
+ 
+ 	uint8_t *key = sdcp->coh->aes_key;
+ 
+ 	int ret = 0;
+ 	int split = 0;
+-	unsigned int i, len, clen, rem = 0;
++	unsigned int i, len, clen, rem = 0, tlen = 0;
+ 	int init = 0;
++	bool limit_hit = false;
+ 
+ 	actx->fill = 0;
+ 
+@@ -289,6 +314,11 @@ static int mxs_dcp_aes_block_crypt(struc
+ 	for_each_sg(req->src, src, nents, i) {
+ 		src_buf = sg_virt(src);
+ 		len = sg_dma_len(src);
++		tlen += len;
++		limit_hit = tlen > req->nbytes;
++
++		if (limit_hit)
++			len = req->nbytes - (tlen - len);
+ 
+ 		do {
+ 			if (actx->fill + len > out_off)
+@@ -305,13 +335,15 @@ static int mxs_dcp_aes_block_crypt(struc
+ 			 * If we filled the buffer or this is the last SG,
+ 			 * submit the buffer.
+ 			 */
+-			if (actx->fill == out_off || sg_is_last(src)) {
++			if (actx->fill == out_off || sg_is_last(src) ||
++				limit_hit) {
+ 				ret = mxs_dcp_run_aes(actx, req, init);
+ 				if (ret)
+ 					return ret;
+ 				init = 0;
+ 
+ 				out_tmp = out_buf;
++				last_out_len = actx->fill;
+ 				while (dst && actx->fill) {
+ 					if (!split) {
+ 						dst_buf = sg_virt(dst);
+@@ -334,6 +366,19 @@ static int mxs_dcp_aes_block_crypt(struc
+ 				}
+ 			}
+ 		} while (len);
++
++		if (limit_hit)
++			break;
++	}
++
++	/* Copy the IV for CBC for chaining */
++	if (!rctx->ecb) {
++		if (rctx->enc)
++			memcpy(req->info, out_buf+(last_out_len-AES_BLOCK_SIZE),
++				AES_BLOCK_SIZE);
++		else
++			memcpy(req->info, in_buf+(last_out_len-AES_BLOCK_SIZE),
++				AES_BLOCK_SIZE);
+ 	}
+ 
+ 	return ret;
+@@ -518,8 +563,6 @@ static int mxs_dcp_run_sha(struct ahash_
+ 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+ 	struct dcp_async_ctx *actx = crypto_ahash_ctx(tfm);
+ 	struct dcp_sha_req_ctx *rctx = ahash_request_ctx(req);
+-	struct hash_alg_common *halg = crypto_hash_alg_common(tfm);
+-
+ 	struct dcp_dma_desc *desc = &sdcp->coh->desc[actx->chan];
+ 
+ 	dma_addr_t digest_phys = 0;
+@@ -541,10 +584,23 @@ static int mxs_dcp_run_sha(struct ahash_
+ 	desc->payload = 0;
+ 	desc->status = 0;
+ 
++	/*
++	 * Align driver with hw behavior when generating null hashes
++	 */
++	if (rctx->init && rctx->fini && desc->size == 0) {
++		struct hash_alg_common *halg = crypto_hash_alg_common(tfm);
++		const uint8_t *sha_buf =
++			(actx->alg == MXS_DCP_CONTROL1_HASH_SELECT_SHA1) ?
++			sha1_null_hash : sha256_null_hash;
++		memcpy(sdcp->coh->sha_out_buf, sha_buf, halg->digestsize);
++		ret = 0;
++		goto done_run;
++	}
++
+ 	/* Set HASH_TERM bit for last transfer block. */
+ 	if (rctx->fini) {
+-		digest_phys = dma_map_single(sdcp->dev, req->result,
+-					     halg->digestsize, DMA_FROM_DEVICE);
++		digest_phys = dma_map_single(sdcp->dev, sdcp->coh->sha_out_buf,
++					     DCP_SHA_PAY_SZ, DMA_FROM_DEVICE);
+ 		desc->control0 |= MXS_DCP_CONTROL0_HASH_TERM;
+ 		desc->payload = digest_phys;
+ 	}
+@@ -552,9 +608,10 @@ static int mxs_dcp_run_sha(struct ahash_
+ 	ret = mxs_dcp_start_dma(actx);
+ 
+ 	if (rctx->fini)
+-		dma_unmap_single(sdcp->dev, digest_phys, halg->digestsize,
++		dma_unmap_single(sdcp->dev, digest_phys, DCP_SHA_PAY_SZ,
+ 				 DMA_FROM_DEVICE);
+ 
++done_run:
+ 	dma_unmap_single(sdcp->dev, buf_phys, DCP_BUF_SZ, DMA_TO_DEVICE);
+ 
+ 	return ret;
+@@ -572,6 +629,7 @@ static int dcp_sha_req_to_buf(struct cry
+ 	const int nents = sg_nents(req->src);
+ 
+ 	uint8_t *in_buf = sdcp->coh->sha_in_buf;
++	uint8_t *out_buf = sdcp->coh->sha_out_buf;
+ 
+ 	uint8_t *src_buf;
+ 
+@@ -626,11 +684,9 @@ static int dcp_sha_req_to_buf(struct cry
+ 
+ 		actx->fill = 0;
+ 
+-		/* For some reason, the result is flipped. */
+-		for (i = 0; i < halg->digestsize / 2; i++) {
+-			swap(req->result[i],
+-			     req->result[halg->digestsize - i - 1]);
+-		}
++		/* For some reason the result is flipped */
++		for (i = 0; i < halg->digestsize; i++)
++			req->result[i] = out_buf[halg->digestsize - i - 1];
+ 	}
+ 
+ 	return 0;
+diff -uprN linux-4.4.194/drivers/crypto/qat/qat_common/adf_common_drv.h NUC980-linux-4.4.y-master/drivers/crypto/qat/qat_common/adf_common_drv.h
+--- linux-4.4.194/drivers/crypto/qat/qat_common/adf_common_drv.h	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/crypto/qat/qat_common/adf_common_drv.h	2021-06-20 19:14:48.000000000 -0700
+@@ -95,7 +95,7 @@ struct service_hndl {
+ 
+ static inline int get_current_node(void)
+ {
+-	return topology_physical_package_id(smp_processor_id());
++	return topology_physical_package_id(raw_smp_processor_id());
+ }
+ 
+ int adf_service_register(struct service_hndl *service);
+diff -uprN linux-4.4.194/drivers/crypto/talitos.c NUC980-linux-4.4.y-master/drivers/crypto/talitos.c
+--- linux-4.4.194/drivers/crypto/talitos.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/crypto/talitos.c	2021-06-20 19:14:48.000000000 -0700
+@@ -2730,6 +2730,7 @@ static int talitos_remove(struct platfor
+ 			break;
+ 		case CRYPTO_ALG_TYPE_AEAD:
+ 			crypto_unregister_aead(&t_alg->algt.alg.aead);
++			break;
+ 		case CRYPTO_ALG_TYPE_AHASH:
+ 			crypto_unregister_ahash(&t_alg->algt.alg.hash);
+ 			break;

@@ -1,0 +1,453 @@
+diff -uprN linux-4.4.194/drivers/pinctrl/pinctrl-at91.c NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-at91.c
+--- linux-4.4.194/drivers/pinctrl/pinctrl-at91.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-at91.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1556,16 +1556,6 @@ void at91_pinctrl_gpio_resume(void)
+ #define gpio_irq_set_wake	NULL
+ #endif /* CONFIG_PM */
+ 
+-static struct irq_chip gpio_irqchip = {
+-	.name		= "GPIO",
+-	.irq_ack	= gpio_irq_ack,
+-	.irq_disable	= gpio_irq_mask,
+-	.irq_mask	= gpio_irq_mask,
+-	.irq_unmask	= gpio_irq_unmask,
+-	/* .irq_set_type is set dynamically */
+-	.irq_set_wake	= gpio_irq_set_wake,
+-};
+-
+ static void gpio_irq_handler(struct irq_desc *desc)
+ {
+ 	struct irq_chip *chip = irq_desc_get_chip(desc);
+@@ -1608,12 +1598,22 @@ static int at91_gpio_of_irq_setup(struct
+ 	struct gpio_chip	*gpiochip_prev = NULL;
+ 	struct at91_gpio_chip   *prev = NULL;
+ 	struct irq_data		*d = irq_get_irq_data(at91_gpio->pioc_virq);
++	struct irq_chip		*gpio_irqchip;
+ 	int ret, i;
+ 
++	gpio_irqchip = devm_kzalloc(&pdev->dev, sizeof(*gpio_irqchip), GFP_KERNEL);
++	if (!gpio_irqchip)
++		return -ENOMEM;
++
+ 	at91_gpio->pioc_hwirq = irqd_to_hwirq(d);
+ 
+-	/* Setup proper .irq_set_type function */
+-	gpio_irqchip.irq_set_type = at91_gpio->ops->irq_type;
++	gpio_irqchip->name = "GPIO";
++	gpio_irqchip->irq_ack = gpio_irq_ack;
++	gpio_irqchip->irq_disable = gpio_irq_mask;
++	gpio_irqchip->irq_mask = gpio_irq_mask;
++	gpio_irqchip->irq_unmask = gpio_irq_unmask;
++	gpio_irqchip->irq_set_wake = gpio_irq_set_wake,
++	gpio_irqchip->irq_set_type = at91_gpio->ops->irq_type;
+ 
+ 	/* Disable irqs of this PIO controller */
+ 	writel_relaxed(~0, at91_gpio->regbase + PIO_IDR);
+@@ -1624,7 +1624,7 @@ static int at91_gpio_of_irq_setup(struct
+ 	 * interrupt.
+ 	 */
+ 	ret = gpiochip_irqchip_add(&at91_gpio->chip,
+-				   &gpio_irqchip,
++				   gpio_irqchip,
+ 				   0,
+ 				   handle_edge_irq,
+ 				   IRQ_TYPE_EDGE_BOTH);
+@@ -1642,7 +1642,7 @@ static int at91_gpio_of_irq_setup(struct
+ 	if (!gpiochip_prev) {
+ 		/* Then register the chain on the parent IRQ */
+ 		gpiochip_set_chained_irqchip(&at91_gpio->chip,
+-					     &gpio_irqchip,
++					     gpio_irqchip,
+ 					     at91_gpio->pioc_virq,
+ 					     gpio_irq_handler);
+ 		return 0;
+diff -uprN linux-4.4.194/drivers/pinctrl/pinctrl-at91-pio4.c NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-at91-pio4.c
+--- linux-4.4.194/drivers/pinctrl/pinctrl-at91-pio4.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-at91-pio4.c	2021-06-20 19:14:48.000000000 -0700
+@@ -477,7 +477,6 @@ static int atmel_pctl_dt_subnode_to_map(
+ 	unsigned num_pins, num_configs, reserve;
+ 	unsigned long *configs;
+ 	struct property	*pins;
+-	bool has_config;
+ 	u32 pinfunc;
+ 	int ret, i;
+ 
+@@ -493,9 +492,6 @@ static int atmel_pctl_dt_subnode_to_map(
+ 		return ret;
+ 	}
+ 
+-	if (num_configs)
+-		has_config = true;
+-
+ 	num_pins = pins->length / sizeof(u32);
+ 	if (!num_pins) {
+ 		dev_err(pctldev->dev, "no pins found in node %s\n",
+@@ -508,7 +504,7 @@ static int atmel_pctl_dt_subnode_to_map(
+ 	 * map for each pin.
+ 	 */
+ 	reserve = 1;
+-	if (has_config && num_pins >= 1)
++	if (num_configs)
+ 		reserve++;
+ 	reserve *= num_pins;
+ 	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps, num_maps,
+@@ -531,7 +527,7 @@ static int atmel_pctl_dt_subnode_to_map(
+ 		pinctrl_utils_add_map_mux(pctldev, map, reserved_maps, num_maps,
+ 					  group, func);
+ 
+-		if (has_config) {
++		if (num_configs) {
+ 			ret = pinctrl_utils_add_map_configs(pctldev, map,
+ 					reserved_maps, num_maps, group,
+ 					configs, num_configs,
+diff -uprN linux-4.4.194/drivers/pinctrl/pinctrl-nuc980.c NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-nuc980.c
+--- linux-4.4.194/drivers/pinctrl/pinctrl-nuc980.c	2021-08-05 23:48:46.567220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-nuc980.c	2021-06-20 19:14:48.000000000 -0700
+@@ -252,8 +252,11 @@ static const unsigned uart8_0_pins[] = {
+ static const unsigned uart8_1_pins[] = {0x68, 0x69}; // rts, cts
+ static const unsigned uart8_2_pins[] = {0x18, 0x20}; // tx, rx
+ static const unsigned uart8_3_pins[] = {0x2C, 0x2D}; // tx, rx
++#if defined(CONFIG_BOARD_CHILI)
++static const unsigned uart8_4_pins[] = {0x2E}; // rts
++#else
+ static const unsigned uart8_4_pins[] = {0x2E, 0x2F}; // cts, rts
+-
++#endif
+ static const unsigned uart9_0_pins[] = {0x11, 0x13}; // tx, rx
+ //static const unsigned uart9_1_pins[] = {0x12, 0x44}; // rts, cts
+ static const unsigned uart9_2_pins[] = {0x45, 0x44}; // rts, cts
+@@ -279,8 +282,15 @@ static const unsigned qspi0_5_pins[] = {
+ static const unsigned spi0_0_pins[] = {0x38, 0x39, 0x3A, 0x3B};
+ static const unsigned spi0_1_pins[] = {0x31, 0x38, 0x39, 0x3A, 0x3B}; // ss1: PD1
+ static const unsigned spi0_2_pins[] = {0x6F, 0x38, 0x39, 0x3A, 0x3B}; // ss1: PG15
++#if defined(CONFIG_BOARD_CHILI)
++static const unsigned spi0_3_pins[] = {0x25, 0x26, 0x28};
++static const unsigned spi0_4_pins[] = {0x20, 0x25, 0x26, 0x28}; // ss1: PC0
++#else
+ static const unsigned spi0_3_pins[] = {0x25, 0x26, 0x27, 0x28};
+ static const unsigned spi0_4_pins[] = {0x20, 0x25, 0x26, 0x27, 0x28}; // ss1: PC0
++#endif
++static const unsigned spi0_3_1pins[] = {0x24};
++static const unsigned spi0_4_1pins[] = {0x24}; 
+ 
+ static const unsigned spi1_0_pins[] = {0x19, 0x1A, 0x1B, 0x1C};
+ static const unsigned spi1_1_pins[] = {0x6B, 0x6C, 0x6D, 0x6E};
+@@ -1050,12 +1060,24 @@ static const struct nuc980_pinctrl_group
+ 		.func = 0x5,
+ 	},
+ 	{
++		.name = "spi0_3_1grp",
++		.pins = spi0_3_1pins,
++		.num_pins = ARRAY_SIZE(spi0_3_1pins),
++		.func = 0x6,
++	},
++	{
+ 		.name = "spi0_4_grp",
+ 		.pins = spi0_4_pins,
+ 		.num_pins = ARRAY_SIZE(spi0_4_pins),
+ 		.func = 0x5,
+ 	},
+ 	{
++		.name = "spi0_4_1grp",
++		.pins = spi0_4_1pins,
++		.num_pins = ARRAY_SIZE(spi0_4_1pins),
++		.func = 0x6,
++	},
++	{
+ 		.name = "spi1_0_grp",
+ 		.pins = spi1_0_pins,
+ 		.num_pins = ARRAY_SIZE(spi1_0_pins),
+@@ -2061,8 +2083,8 @@ static const char * const qspi0_groups[]
+ static const char * const qspi0_quad_groups[] = {"qspi0_2_grp"};
+ static const char * const qspi0_ss1_groups[] = {"qspi0_0_grp", "qspi0_1_grp"};
+ static const char * const qspi0_quad_ss1_groups[] = {"qspi0_4_grp","qspi0_5_grp"};
+-static const char * const spi0_groups[] = {"spi0_0_grp","spi0_3_grp"};
+-static const char * const spi0_ss1_groups[] = {"spi0_1_grp","spi0_2_grp","spi0_4_grp"};
++static const char * const spi0_groups[] = {"spi0_0_grp","spi0_3_grp","spi0_3_1grp"};
++static const char * const spi0_ss1_groups[] = {"spi0_1_grp","spi0_2_grp","spi0_4_grp","spi0_4_1grp"};
+ static const char * const spi1_groups[] = {"spi1_0_grp", "spi1_1_grp", "spi1_3_grp"};
+ static const char * const spi1_ss1_groups[] = {"spi1_2_grp", "spi1_4_grp"};
+ static const char * const can0_groups[] = {"can0_0_grp", "can0_1_grp", "can0_2_grp", "can0_3_grp"};
+@@ -3570,6 +3592,14 @@ static const struct pinctrl_map nuc980_p
+ 	},
+ 	{
+ 		.dev_name = "nuc980-spi0.0",
++		.name = "spi0-PC1",
++		.type = PIN_MAP_TYPE_MUX_GROUP,
++		.ctrl_dev_name = "pinctrl-nuc980",
++		.data.mux.function = "spi0",
++		.data.mux.group = "spi0_3_1grp",
++	},
++	{
++		.dev_name = "nuc980-spi0.0",
+ 		.name = "spi0-ss1-PC0",
+ 		.type = PIN_MAP_TYPE_MUX_GROUP,
+ 		.ctrl_dev_name = "pinctrl-nuc980",
+@@ -3577,6 +3607,14 @@ static const struct pinctrl_map nuc980_p
+ 		.data.mux.group = "spi0_4_grp",
+ 	},
+ 	{
++		.dev_name = "nuc980-spi0.0",
++		.name = "spi0-ss1-PC0_1",
++		.type = PIN_MAP_TYPE_MUX_GROUP,
++		.ctrl_dev_name = "pinctrl-nuc980",
++		.data.mux.function = "spi0_ss1",
++		.data.mux.group = "spi0_4_1grp",
++	},
++	{
+ 		.dev_name = "nuc980-spi1.0",
+ 		.name = "spi1-PB9_12",
+ 		.type = PIN_MAP_TYPE_MUX_GROUP,
+diff -uprN linux-4.4.194/drivers/pinctrl/pinctrl-tegra.c NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-tegra.c
+--- linux-4.4.194/drivers/pinctrl/pinctrl-tegra.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-tegra.c	2021-06-20 19:14:48.000000000 -0700
+@@ -52,7 +52,9 @@ static inline u32 pmx_readl(struct tegra
+ 
+ static inline void pmx_writel(struct tegra_pmx *pmx, u32 val, u32 bank, u32 reg)
+ {
+-	writel(val, pmx->regs[bank] + reg);
++	writel_relaxed(val, pmx->regs[bank] + reg);
++	/* make sure pinmux register write completed */
++	pmx_readl(pmx, bank, reg);
+ }
+ 
+ static int tegra_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
+diff -uprN linux-4.4.194/drivers/pinctrl/pinctrl-zynq.c NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-zynq.c
+--- linux-4.4.194/drivers/pinctrl/pinctrl-zynq.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/pinctrl-zynq.c	2021-06-20 19:14:48.000000000 -0700
+@@ -967,15 +967,12 @@ enum zynq_io_standards {
+ 	zynq_iostd_max
+ };
+ 
+-/**
+- * enum zynq_pin_config_param - possible pin configuration parameters
+- * @PIN_CONFIG_IOSTANDARD: if the pin can select an IO standard, the argument to
++/*
++ * PIN_CONFIG_IOSTANDARD: if the pin can select an IO standard, the argument to
+  *	this parameter (on a custom format) tells the driver which alternative
+  *	IO standard to use.
+  */
+-enum zynq_pin_config_param {
+-	PIN_CONFIG_IOSTANDARD = PIN_CONFIG_END + 1,
+-};
++#define PIN_CONFIG_IOSTANDARD		(PIN_CONFIG_END + 1)
+ 
+ static const struct pinconf_generic_params zynq_dt_params[] = {
+ 	{"io-standard", PIN_CONFIG_IOSTANDARD, zynq_iostd_lvcmos18},
+diff -uprN linux-4.4.194/drivers/pinctrl/qcom/pinctrl-spmi-gpio.c NUC980-linux-4.4.y-master/drivers/pinctrl/qcom/pinctrl-spmi-gpio.c
+--- linux-4.4.194/drivers/pinctrl/qcom/pinctrl-spmi-gpio.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/qcom/pinctrl-spmi-gpio.c	2021-06-20 19:14:48.000000000 -0700
+@@ -793,10 +793,23 @@ static int pmic_gpio_probe(struct platfo
+ 		goto err_chip;
+ 	}
+ 
+-	ret = gpiochip_add_pin_range(&state->chip, dev_name(dev), 0, 0, npins);
+-	if (ret) {
+-		dev_err(dev, "failed to add pin range\n");
+-		goto err_range;
++	/*
++	 * For DeviceTree-supported systems, the gpio core checks the
++	 * pinctrl's device node for the "gpio-ranges" property.
++	 * If it is present, it takes care of adding the pin ranges
++	 * for the driver. In this case the driver can skip ahead.
++	 *
++	 * In order to remain compatible with older, existing DeviceTree
++	 * files which don't set the "gpio-ranges" property or systems that
++	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
++	 */
++	if (!of_property_read_bool(dev->of_node, "gpio-ranges")) {
++		ret = gpiochip_add_pin_range(&state->chip, dev_name(dev), 0, 0,
++					     npins);
++		if (ret) {
++			dev_err(dev, "failed to add pin range\n");
++			goto err_range;
++		}
+ 	}
+ 
+ 	return 0;
+diff -uprN linux-4.4.194/drivers/pinctrl/qcom/pinctrl-ssbi-gpio.c NUC980-linux-4.4.y-master/drivers/pinctrl/qcom/pinctrl-ssbi-gpio.c
+--- linux-4.4.194/drivers/pinctrl/qcom/pinctrl-ssbi-gpio.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/qcom/pinctrl-ssbi-gpio.c	2021-06-20 19:14:48.000000000 -0700
+@@ -755,12 +755,23 @@ static int pm8xxx_gpio_probe(struct plat
+ 		goto unregister_pinctrl;
+ 	}
+ 
+-	ret = gpiochip_add_pin_range(&pctrl->chip,
+-				     dev_name(pctrl->dev),
+-				     0, 0, pctrl->chip.ngpio);
+-	if (ret) {
+-		dev_err(pctrl->dev, "failed to add pin range\n");
+-		goto unregister_gpiochip;
++	/*
++	 * For DeviceTree-supported systems, the gpio core checks the
++	 * pinctrl's device node for the "gpio-ranges" property.
++	 * If it is present, it takes care of adding the pin ranges
++	 * for the driver. In this case the driver can skip ahead.
++	 *
++	 * In order to remain compatible with older, existing DeviceTree
++	 * files which don't set the "gpio-ranges" property or systems that
++	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
++	 */
++	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
++		ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev),
++					     0, 0, pctrl->chip.ngpio);
++		if (ret) {
++			dev_err(pctrl->dev, "failed to add pin range\n");
++			goto unregister_gpiochip;
++		}
+ 	}
+ 
+ 	platform_set_drvdata(pdev, pctrl);
+diff -uprN linux-4.4.194/drivers/pinctrl/samsung/pinctrl-s3c24xx.c NUC980-linux-4.4.y-master/drivers/pinctrl/samsung/pinctrl-s3c24xx.c
+--- linux-4.4.194/drivers/pinctrl/samsung/pinctrl-s3c24xx.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/samsung/pinctrl-s3c24xx.c	2021-06-20 19:14:48.000000000 -0700
+@@ -495,8 +495,10 @@ static int s3c24xx_eint_init(struct sams
+ 		return -ENODEV;
+ 
+ 	eint_data = devm_kzalloc(dev, sizeof(*eint_data), GFP_KERNEL);
+-	if (!eint_data)
++	if (!eint_data) {
++		of_node_put(eint_np);
+ 		return -ENOMEM;
++	}
+ 
+ 	eint_data->drvdata = d;
+ 
+@@ -508,12 +510,14 @@ static int s3c24xx_eint_init(struct sams
+ 		irq = irq_of_parse_and_map(eint_np, i);
+ 		if (!irq) {
+ 			dev_err(dev, "failed to get wakeup EINT IRQ %d\n", i);
++			of_node_put(eint_np);
+ 			return -ENXIO;
+ 		}
+ 
+ 		eint_data->parents[i] = irq;
+ 		irq_set_chained_handler_and_data(irq, handlers[i], eint_data);
+ 	}
++	of_node_put(eint_np);
+ 
+ 	bank = d->pin_banks;
+ 	for (i = 0; i < d->nr_banks; ++i, ++bank) {
+diff -uprN linux-4.4.194/drivers/pinctrl/samsung/pinctrl-s3c64xx.c NUC980-linux-4.4.y-master/drivers/pinctrl/samsung/pinctrl-s3c64xx.c
+--- linux-4.4.194/drivers/pinctrl/samsung/pinctrl-s3c64xx.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/samsung/pinctrl-s3c64xx.c	2021-06-20 19:14:48.000000000 -0700
+@@ -713,6 +713,7 @@ static int s3c64xx_eint_eint0_init(struc
+ 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+ 	if (!data) {
+ 		dev_err(dev, "could not allocate memory for wkup eint data\n");
++		of_node_put(eint0_np);
+ 		return -ENOMEM;
+ 	}
+ 	data->drvdata = d;
+@@ -723,6 +724,7 @@ static int s3c64xx_eint_eint0_init(struc
+ 		irq = irq_of_parse_and_map(eint0_np, i);
+ 		if (!irq) {
+ 			dev_err(dev, "failed to get wakeup EINT IRQ %d\n", i);
++			of_node_put(eint0_np);
+ 			return -ENXIO;
+ 		}
+ 
+@@ -730,6 +732,7 @@ static int s3c64xx_eint_eint0_init(struc
+ 						 s3c64xx_eint0_handlers[i],
+ 						 data);
+ 	}
++	of_node_put(eint0_np);
+ 
+ 	bank = d->pin_banks;
+ 	for (i = 0; i < d->nr_banks; ++i, ++bank) {
+diff -uprN linux-4.4.194/drivers/pinctrl/samsung/pinctrl-samsung.c NUC980-linux-4.4.y-master/drivers/pinctrl/samsung/pinctrl-samsung.c
+--- linux-4.4.194/drivers/pinctrl/samsung/pinctrl-samsung.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/samsung/pinctrl-samsung.c	2021-06-20 19:14:48.000000000 -0700
+@@ -286,6 +286,7 @@ static int samsung_dt_node_to_map(struct
+ 						&reserved_maps, num_maps);
+ 		if (ret < 0) {
+ 			samsung_dt_free_map(pctldev, *map, *num_maps);
++			of_node_put(np);
+ 			return ret;
+ 		}
+ 	}
+@@ -753,8 +754,10 @@ static struct samsung_pmx_func *samsung_
+ 		if (!of_get_child_count(cfg_np)) {
+ 			ret = samsung_pinctrl_create_function(dev, drvdata,
+ 							cfg_np, func);
+-			if (ret < 0)
++			if (ret < 0) {
++				of_node_put(cfg_np);
+ 				return ERR_PTR(ret);
++			}
+ 			if (ret > 0) {
+ 				++func;
+ 				++func_cnt;
+@@ -765,8 +768,11 @@ static struct samsung_pmx_func *samsung_
+ 		for_each_child_of_node(cfg_np, func_np) {
+ 			ret = samsung_pinctrl_create_function(dev, drvdata,
+ 						func_np, func);
+-			if (ret < 0)
++			if (ret < 0) {
++				of_node_put(func_np);
++				of_node_put(cfg_np);
+ 				return ERR_PTR(ret);
++			}
+ 			if (ret > 0) {
+ 				++func;
+ 				++func_cnt;
+diff -uprN linux-4.4.194/drivers/pinctrl/sh-pfc/pfc-sh7264.c NUC980-linux-4.4.y-master/drivers/pinctrl/sh-pfc/pfc-sh7264.c
+--- linux-4.4.194/drivers/pinctrl/sh-pfc/pfc-sh7264.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/sh-pfc/pfc-sh7264.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1716,6 +1716,9 @@ static const struct pinmux_cfg_reg pinmu
+ 	},
+ 
+ 	{ PINMUX_CFG_REG("PFCR3", 0xfffe38a8, 16, 4) {
++		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
++		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
++		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 		PF12MD_000, PF12MD_001, 0, PF12MD_011,
+ 		PF12MD_100, PF12MD_101, 0, 0,
+ 		0, 0, 0, 0, 0, 0, 0, 0 }
+@@ -1759,8 +1762,10 @@ static const struct pinmux_cfg_reg pinmu
+ 		0, 0, 0, 0, 0, 0, 0, 0,
+ 		PF1MD_000, PF1MD_001, PF1MD_010, PF1MD_011,
+ 		PF1MD_100, PF1MD_101, 0, 0,
+-		0, 0, 0, 0, 0, 0, 0, 0
+-	 }
++		0, 0, 0, 0, 0, 0, 0, 0,
++		PF0MD_000, PF0MD_001, PF0MD_010, PF0MD_011,
++		PF0MD_100, PF0MD_101, 0, 0,
++		0, 0, 0, 0, 0, 0, 0, 0 }
+ 	},
+ 
+ 	{ PINMUX_CFG_REG("PFIOR0", 0xfffe38b2, 16, 1) {
+diff -uprN linux-4.4.194/drivers/pinctrl/sh-pfc/pfc-sh7734.c NUC980-linux-4.4.y-master/drivers/pinctrl/sh-pfc/pfc-sh7734.c
+--- linux-4.4.194/drivers/pinctrl/sh-pfc/pfc-sh7734.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pinctrl/sh-pfc/pfc-sh7734.c	2021-06-20 19:14:48.000000000 -0700
+@@ -2218,22 +2218,22 @@ static const struct pinmux_cfg_reg pinmu
+ 	    /* IP10_22 [1] */
+ 		FN_CAN_CLK_A, FN_RX4_D,
+ 	    /* IP10_21_19 [3] */
+-		FN_AUDIO_CLKOUT, FN_TX1_E, FN_HRTS0_C, FN_FSE_B,
+-		FN_LCD_M_DISP_B, 0, 0, 0,
++		FN_AUDIO_CLKOUT, FN_TX1_E, 0, FN_HRTS0_C, FN_FSE_B,
++		FN_LCD_M_DISP_B, 0, 0,
+ 	    /* IP10_18_16 [3] */
+-		FN_AUDIO_CLKC, FN_SCK1_E, FN_HCTS0_C, FN_FRB_B,
+-		FN_LCD_VEPWC_B, 0, 0, 0,
++		FN_AUDIO_CLKC, FN_SCK1_E, 0, FN_HCTS0_C, FN_FRB_B,
++		FN_LCD_VEPWC_B, 0, 0,
+ 	    /* IP10_15 [1] */
+ 		FN_AUDIO_CLKB_A, FN_LCD_CLK_B,
+ 	    /* IP10_14_12 [3] */
+ 		FN_AUDIO_CLKA_A, FN_VI1_CLK_B, FN_SCK1_D, FN_IECLK_B,
+ 		FN_LCD_FLM_B, 0, 0, 0,
+ 	    /* IP10_11_9 [3] */
+-		FN_SSI_SDATA3, FN_VI1_7_B, FN_HTX0_C, FN_FWE_B,
+-		FN_LCD_CL2_B, 0, 0, 0,
++		FN_SSI_SDATA3, FN_VI1_7_B, 0, FN_HTX0_C, FN_FWE_B,
++		FN_LCD_CL2_B, 0, 0,
+ 	    /* IP10_8_6 [3] */
+-		FN_SSI_SDATA2, FN_VI1_6_B, FN_HRX0_C, FN_FRE_B,
+-		FN_LCD_CL1_B, 0, 0, 0,
++		FN_SSI_SDATA2, FN_VI1_6_B, 0, FN_HRX0_C, FN_FRE_B,
++		FN_LCD_CL1_B, 0, 0,
+ 	    /* IP10_5_3 [3] */
+ 		FN_SSI_WS23, FN_VI1_5_B, FN_TX1_D, FN_HSCK0_C, FN_FALE_B,
+ 		FN_LCD_DON_B, 0, 0, 0,

@@ -1,0 +1,130 @@
+diff -uprN linux-4.4.194/drivers/pwm/core.c NUC980-linux-4.4.y-master/drivers/pwm/core.c
+--- linux-4.4.194/drivers/pwm/core.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pwm/core.c	2021-06-20 19:14:48.000000000 -0700
+@@ -781,6 +781,7 @@ void pwm_put(struct pwm_device *pwm)
+ 	if (pwm->chip->ops->free)
+ 		pwm->chip->ops->free(pwm->chip, pwm);
+ 
++	pwm_set_chip_data(pwm, NULL);
+ 	pwm->label = NULL;
+ 
+ 	module_put(pwm->chip->ops->owner);
+diff -uprN linux-4.4.194/drivers/pwm/pwm-nuc980-pwm0.c NUC980-linux-4.4.y-master/drivers/pwm/pwm-nuc980-pwm0.c
+--- linux-4.4.194/drivers/pwm/pwm-nuc980-pwm0.c	2021-08-05 23:48:46.567220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pwm/pwm-nuc980-pwm0.c	2021-06-20 19:14:48.000000000 -0700
+@@ -118,6 +118,42 @@ static void nuc980_pwm_disable(struct pw
+ #endif
+ }
+ 
++static int nuc980_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm, enum pwm_polarity polarity)
++{
++	//struct nuc980_chip *nuc980 = to_nuc980_chip(chip);
++	int ch = pwm->hwpwm + chip->base;
++	unsigned long flags;
++
++	local_irq_save(flags);
++
++	if(ch == 0) {
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4), REG_PWM_PCR);
++	} else if(ch == 1) {
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4 << 8), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4 << 8), REG_PWM_PCR);
++	} else if (ch == 2) {
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4 << 12), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4 << 12), REG_PWM_PCR);
++	} else {	/* ch 3 */
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4 << 16), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4 << 16), REG_PWM_PCR);
++	}
++
++	local_irq_restore(flags);
++#ifdef DEBUG_PWM
++	pwm_dbg();
++#endif
++	return 0;
++}
+ 
+ 
+ static int nuc980_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+@@ -172,6 +208,7 @@ static struct pwm_ops nuc980_pwm_ops = {
+ 	.enable = nuc980_pwm_enable,
+ 	.disable = nuc980_pwm_disable,
+ 	.config = nuc980_pwm_config,
++	.set_polarity = nuc980_pwm_set_polarity,
+ 	.owner = THIS_MODULE,
+ };
+ 
+diff -uprN linux-4.4.194/drivers/pwm/pwm-nuc980-pwm1.c NUC980-linux-4.4.y-master/drivers/pwm/pwm-nuc980-pwm1.c
+--- linux-4.4.194/drivers/pwm/pwm-nuc980-pwm1.c	2021-08-05 23:48:46.567220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pwm/pwm-nuc980-pwm1.c	2021-06-20 19:14:48.000000000 -0700
+@@ -118,6 +118,42 @@ static void nuc980_pwm_disable(struct pw
+ #endif
+ }
+ 
++static int nuc980_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm, enum pwm_polarity polarity)
++{
++	//struct nuc980_chip *nuc980 = to_nuc980_chip(chip);
++	int ch = pwm->hwpwm + chip->base;
++	unsigned long flags;
++
++	local_irq_save(flags);
++
++	if(ch == 4) {
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4), REG_PWM_PCR);
++	} else if(ch == 5) {
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4 << 8), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4 << 8), REG_PWM_PCR);
++	} else if (ch == 6) {
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4 << 12), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4 << 12), REG_PWM_PCR);
++	} else {	/* ch 7 */
++		if (polarity == PWM_POLARITY_NORMAL)
++			__raw_writel(__raw_readl(REG_PWM_PCR) & ~(4 << 16), REG_PWM_PCR);
++		else
++			__raw_writel(__raw_readl(REG_PWM_PCR) | (4 << 16), REG_PWM_PCR);
++	}
++
++	local_irq_restore(flags);
++#ifdef DEBUG_PWM
++	pwm_dbg();
++#endif
++	return 0;
++}
+ 
+ 
+ static int nuc980_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+@@ -172,6 +208,7 @@ static struct pwm_ops nuc980_pwm_ops = {
+ 	.enable = nuc980_pwm_enable,
+ 	.disable = nuc980_pwm_disable,
+ 	.config = nuc980_pwm_config,
++	.set_polarity = nuc980_pwm_set_polarity,
+ 	.owner = THIS_MODULE,
+ };
+ 
+diff -uprN linux-4.4.194/drivers/pwm/pwm-samsung.c NUC980-linux-4.4.y-master/drivers/pwm/pwm-samsung.c
+--- linux-4.4.194/drivers/pwm/pwm-samsung.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/pwm/pwm-samsung.c	2021-06-20 19:14:48.000000000 -0700
+@@ -226,7 +226,6 @@ static int pwm_samsung_request(struct pw
+ static void pwm_samsung_free(struct pwm_chip *chip, struct pwm_device *pwm)
+ {
+ 	devm_kfree(chip->dev, pwm_get_chip_data(pwm));
+-	pwm_set_chip_data(pwm, NULL);
+ }
+ 
+ static int pwm_samsung_enable(struct pwm_chip *chip, struct pwm_device *pwm)

@@ -1,0 +1,24 @@
+diff -uprN linux-4.4.194/drivers/net/ethernet/nuvoton/nuc980_ether0.c NUC980-linux-4.4.y-master/drivers/net/ethernet/nuvoton/nuc980_ether0.c
+--- linux-4.4.194/drivers/net/ethernet/nuvoton/nuc980_ether0.c	2021-08-05 23:48:46.567220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/net/ethernet/nuvoton/nuc980_ether0.c	2021-06-20 19:14:48.000000000 -0700
+@@ -730,7 +730,7 @@ static int nuc980_poll(struct napi_struc
+ 		status = rxbd->sl;
+ 		length = status & 0xFFFF;
+ 
+-		if (likely(status & RXDS_RXGD)) {
++		if (likely((status & RXDS_RXGD) && (length <= 1514))) {
+ 
+ 			skb = dev_alloc_skb(1520);
+ 			if (!skb) {
+diff -uprN linux-4.4.194/drivers/net/ethernet/nuvoton/nuc980_ether1.c NUC980-linux-4.4.y-master/drivers/net/ethernet/nuvoton/nuc980_ether1.c
+--- linux-4.4.194/drivers/net/ethernet/nuvoton/nuc980_ether1.c	2021-08-05 23:48:46.567220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/net/ethernet/nuvoton/nuc980_ether1.c	2021-06-20 19:14:48.000000000 -0700
+@@ -730,7 +730,7 @@ static int nuc980_poll(struct napi_struc
+ 		status = rxbd->sl;
+ 		length = status & 0xFFFF;
+ 
+-		if (likely(status & RXDS_RXGD)) {
++		if (likely((status & RXDS_RXGD) && (length <= 1514))) {
+ 
+ 			skb = dev_alloc_skb(1520);
+ 			if (!skb) {

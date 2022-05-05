@@ -1,0 +1,192 @@
+diff -uprN linux-4.4.194/drivers/mmc/host/mtk-sd.c NUC980-linux-4.4.y-master/drivers/mmc/host/mtk-sd.c
+--- linux-4.4.194/drivers/mmc/host/mtk-sd.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mmc/host/mtk-sd.c	2021-06-20 19:14:48.000000000 -0700
+@@ -846,6 +846,7 @@ static void msdc_start_command(struct ms
+ 	WARN_ON(host->cmd);
+ 	host->cmd = cmd;
+ 
++	mod_delayed_work(system_wq, &host->req_timeout, DAT_TIMEOUT);
+ 	if (!msdc_cmd_is_ready(host, mrq, cmd))
+ 		return;
+ 
+@@ -857,7 +858,6 @@ static void msdc_start_command(struct ms
+ 
+ 	cmd->error = 0;
+ 	rawcmd = msdc_cmd_prepare_raw_cmd(host, mrq, cmd);
+-	mod_delayed_work(system_wq, &host->req_timeout, DAT_TIMEOUT);
+ 
+ 	sdr_set_bits(host->base + MSDC_INTEN, cmd_ints_mask);
+ 	writel(cmd->arg, host->base + SDC_ARG);
+diff -uprN linux-4.4.194/drivers/mmc/host/nuc980_fmi.c NUC980-linux-4.4.y-master/drivers/mmc/host/nuc980_fmi.c
+--- linux-4.4.194/drivers/mmc/host/nuc980_fmi.c	2021-08-05 23:48:46.563220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mmc/host/nuc980_fmi.c	2021-06-20 19:14:48.000000000 -0700
+@@ -80,7 +80,7 @@ struct nuc980_fmi_host {
+ 	int irq;
+ 
+ 	int present;
+-	struct clk *fmi_clk, *upll_clk;
++	struct clk *fmi_clk, *upll_clk, *xin_clk, *div_clk, *mux_clk;
+ 	/*
+ 	 * Flag indicating when the command has been sent. This is used to
+ 	 * work out whether or not to send the stop
+@@ -624,12 +624,13 @@ static void nuc980_fmi_set_ios(struct mm
+ 		}
+ 		//printk("ios->clock=%d\n",ios->clock);
+ 		if (ios->clock <= 400000) {
+-			clk_set_rate(host->upll_clk, 100000000);
+-			clk_set_rate(host->fmi_clk, ios->clock);
++			clk_set_parent(host->mux_clk, host->xin_clk);
++			clk_set_rate(host->div_clk, ios->clock);
+ 			nuc980_fmi_write(REG_EMMCCSR, nuc980_fmi_read(REG_EMMCCSR) | EMMCCSR_CLK74_OE);
+ 			while (nuc980_fmi_read(REG_EMMCCSR) & EMMCCSR_CLK74_OE);
+ 		} else {
+-			clk_set_rate(host->fmi_clk, ios->clock);
++			clk_set_parent(host->mux_clk, host->upll_clk);
++			clk_set_rate(host->div_clk, ios->clock);
+ 		}
+ 		break;
+ 	default:
+@@ -811,6 +812,7 @@ static int nuc980_fmi_probe(struct platf
+ 	struct clk *clkmux;
+ 	struct pinctrl *p;
+ 	struct clk *fmi_clk,*upll_clk;
++	struct clk *xin_clk=NULL,*div_clk=NULL;
+ 	ENTRY();
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ 	if (!res)
+@@ -846,15 +848,24 @@ static int nuc980_fmi_probe(struct platf
+ 		return ret;
+ 	}
+ 
+-	upll_clk = clk_get(NULL, "sdh0_eclk_div");
++	xin_clk = clk_get(NULL, "xin");
++	if (IS_ERR(upll_clk)) {
++		printk(KERN_ERR "nuc980-fmi:failed to get sd0 clock source\n");
++		ret = PTR_ERR(upll_clk);
++		return ret;
++	}
++
++	upll_clk = clk_get(NULL, "upll");
+ 	if (IS_ERR(upll_clk)) {
+ 		printk(KERN_ERR "nuc980-fmi:failed to get sd0 clock source\n");
+ 		ret = PTR_ERR(upll_clk);
+ 		return ret;
+ 	}
+ 	clk_set_parent(clkmux, upll_clk);
+-	//clk_set_rate(upll_clk, 33000000);
+-	clk_set_rate(upll_clk, 10000000);
++
++	div_clk = clk_get(NULL, "sdh0_eclk_div");
++
++	clk_set_rate(div_clk, 10000000);
+ 
+ 	mmc = mmc_alloc_host(sizeof(struct nuc980_fmi_host), &pdev->dev);
+ 	if (!mmc) {
+@@ -888,6 +899,9 @@ static int nuc980_fmi_probe(struct platf
+ 
+ 	host->fmi_clk = fmi_clk;
+ 	host->upll_clk = upll_clk;
++	host->xin_clk= xin_clk;
++	host->div_clk = div_clk;
++	host->mux_clk = clkmux;
+ 
+ 	nuc980_fmi_disable(host);
+ 	nuc980_fmi_enable(host);
+diff -uprN linux-4.4.194/drivers/mmc/host/nuc980_sd.c NUC980-linux-4.4.y-master/drivers/mmc/host/nuc980_sd.c
+--- linux-4.4.194/drivers/mmc/host/nuc980_sd.c	2021-08-05 23:48:46.563220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mmc/host/nuc980_sd.c	2021-06-20 19:14:48.000000000 -0700
+@@ -714,7 +714,7 @@ static void nuc980_sd_set_ios(struct mmc
+ 	LEAVE();
+ }
+ 
+-
++#define SD_TIMEOUT	10000000
+ /*
+  * Handle CO, RI, and R2 event
+  */
+@@ -722,22 +722,28 @@ static int nuc980_sd_event_thread(struct
+ {
+ 	int event = 0;
+ 	int completed = 0;
++	unsigned int timeout = 0;
+ 	ENTRY();
+ 
+ 	completed = 0;
+ 	event = sd_event;
+ 	sd_event = SD_EVENT_NONE;
+ 	if (event & SD_EVENT_CMD_OUT) {
+-		while (1) {
++		while (timeout < SD_TIMEOUT)
++		{
+ 			if (!(nuc980_sd_read(REG_SDCSR) & SDCSR_CO_EN)) {
+ 				completed = 1;
+ 				break;
++			}else{
++				ndelay(100);
++				timeout++;
+ 			}
+ 		}
+ 	}
+ 
+ 	if (event & SD_EVENT_RSP_IN) {
+-		while (1) {
++		timeout=0;
++		while (timeout < SD_TIMEOUT){
+ 			if (!(nuc980_sd_read(REG_SDCSR) & SDCSR_RI_EN)) {
+ 				completed = 1;
+ 				break;
+@@ -751,17 +757,27 @@ static int nuc980_sd_event_thread(struct
+ 				sd_host->cmd->error = -ETIMEDOUT;
+ 				break;
+ 			}
++			timeout++;
++			ndelay(100);
+ 		}
+ 	}
+ 
+ 	if (event & SD_EVENT_RSP2_IN) {
+-		while (1) {
++		timeout = 0;
++		while (timeout < SD_TIMEOUT) {
+ 			if (!(nuc980_sd_read(REG_SDCSR) & SDCSR_R2_EN)) {
+ 				completed = 1;
+ 				break;
++			}else{
++				ndelay(100);
++				timeout++;
+ 			}
+ 		}
+ 	}
++	if(timeout >= SD_TIMEOUT) {
++		completed = 1;
++		sd_host->cmd->error = -ETIMEDOUT;
++	}
+ 	if (completed) {
+ 		nuc980_sd_completed_command(sd_host, event);
+ 	}
+diff -uprN linux-4.4.194/drivers/mmc/host/sdhci.c NUC980-linux-4.4.y-master/drivers/mmc/host/sdhci.c
+--- linux-4.4.194/drivers/mmc/host/sdhci.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mmc/host/sdhci.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1452,7 +1452,9 @@ void sdhci_set_uhs_signaling(struct sdhc
+ 		ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
+ 	else if (timing == MMC_TIMING_UHS_SDR12)
+ 		ctrl_2 |= SDHCI_CTRL_UHS_SDR12;
+-	else if (timing == MMC_TIMING_UHS_SDR25)
++	else if (timing == MMC_TIMING_SD_HS ||
++		 timing == MMC_TIMING_MMC_HS ||
++		 timing == MMC_TIMING_UHS_SDR25)
+ 		ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+ 	else if (timing == MMC_TIMING_UHS_SDR50)
+ 		ctrl_2 |= SDHCI_CTRL_UHS_SDR50;
+diff -uprN linux-4.4.194/drivers/mmc/host/sdhci-of-at91.c NUC980-linux-4.4.y-master/drivers/mmc/host/sdhci-of-at91.c
+--- linux-4.4.194/drivers/mmc/host/sdhci-of-at91.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mmc/host/sdhci-of-at91.c	2021-06-20 19:14:48.000000000 -0700
+@@ -145,7 +145,7 @@ static int sdhci_at91_probe(struct platf
+ 	sdhci_get_of_property(pdev);
+ 
+ 	/* HS200 is broken at this moment */
+-	host->quirks2 = SDHCI_QUIRK2_BROKEN_HS200;
++	host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
+ 
+ 	ret = sdhci_add_host(host);
+ 	if (ret)

@@ -1,0 +1,148 @@
+diff -uprN linux-4.4.194/drivers/i2c/busses/i2c-imx.c NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-imx.c
+--- linux-4.4.194/drivers/i2c/busses/i2c-imx.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-imx.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1076,7 +1076,8 @@ static int i2c_imx_probe(struct platform
+ 	/* Get I2C clock */
+ 	i2c_imx->clk = devm_clk_get(&pdev->dev, NULL);
+ 	if (IS_ERR(i2c_imx->clk)) {
+-		dev_err(&pdev->dev, "can't get I2C clock\n");
++		if (PTR_ERR(i2c_imx->clk) != -EPROBE_DEFER)
++			dev_err(&pdev->dev, "can't get I2C clock\n");
+ 		return PTR_ERR(i2c_imx->clk);
+ 	}
+ 
+diff -uprN linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p0.c NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p0.c
+--- linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p0.c	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p0.c	2021-06-20 19:14:48.000000000 -0700
+@@ -372,7 +372,6 @@ static void i2c_nuc980_irq_master_TRx(st
+ 
+ 		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+ 		{
+-			printk("\n i2c_0: ack was not received\n");
+ 			//writel((I2C_CTL_STA | I2C_CTL_STO | I2C_CTL_SI), (i2c->regs+CTL0));
+ 			nuc980_i2c0_stop(i2c, -ENXIO);
+ 		}
+@@ -396,6 +395,10 @@ static void i2c_nuc980_irq_master_TRx(st
+ 			nuc980_i2c0_stop(i2c, 0);
+ 			//return;
+ 		}
++		else if(is_lastmsg(i2c) && (i2c->msg->len == 1))
++		{
++			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI), (i2c->regs+CTL0));
++		}
+ 		else
+ 			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI_AA), (i2c->regs+CTL0));
+ 	}
+@@ -766,7 +769,7 @@ static int nuc980_i2c0_probe(struct plat
+ 	}
+ 
+ 	// Set Clock divider
+-	ret = clk_get_rate(i2c->clk)/(busfreq * 4) - 1;
++	ret = ((clk_get_rate(i2c->clk) * 10) / (busfreq * 4) + 5) / 10 - 1;
+ 	writel(ret & 0xffff, i2c->regs + CLKDIV);
+ 
+ 	writel((readl(i2c->regs+CTL0)|(0x1 << 6)), i2c->regs + CTL0);
+diff -uprN linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p1.c NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p1.c
+--- linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p1.c	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p1.c	2021-06-20 19:14:48.000000000 -0700
+@@ -372,7 +372,6 @@ static void i2c_nuc980_irq_master_TRx(st
+ 
+ 		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+ 		{
+-			printk("\n i2c_0: ack was not received\n");
+ 			//writel((I2C_CTL_STA | I2C_CTL_STO | I2C_CTL_SI), (i2c->regs+CTL0));
+ 			nuc980_i2c1_stop(i2c, -ENXIO);
+ 		}
+@@ -396,6 +395,10 @@ static void i2c_nuc980_irq_master_TRx(st
+ 			nuc980_i2c1_stop(i2c, 0);
+ 			//return;
+ 		}
++		else if(is_lastmsg(i2c) && (i2c->msg->len == 1))
++		{
++			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI), (i2c->regs+CTL0));
++		}
+ 		else
+ 			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI_AA), (i2c->regs+CTL0));
+ 	}
+@@ -766,7 +769,7 @@ static int nuc980_i2c1_probe(struct plat
+ 	}
+ 
+ 	// Set Clock divider
+-	ret = clk_get_rate(i2c->clk)/(busfreq * 4) - 1;
++	ret = ((clk_get_rate(i2c->clk) * 10) / (busfreq * 4) + 5) / 10 - 1;
+ 	writel(ret & 0xffff, i2c->regs + CLKDIV);
+ 
+ 	writel((readl(i2c->regs+CTL0)|(0x1 << 6)), i2c->regs + CTL0);
+diff -uprN linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p2.c NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p2.c
+--- linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p2.c	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p2.c	2021-06-20 19:14:48.000000000 -0700
+@@ -372,7 +372,6 @@ static void i2c_nuc980_irq_master_TRx(st
+ 
+ 		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+ 		{
+-			printk("\n i2c_0: ack was not received\n");
+ 			//writel((I2C_CTL_STA | I2C_CTL_STO | I2C_CTL_SI), (i2c->regs+CTL0));
+ 			nuc980_i2c2_stop(i2c, -ENXIO);
+ 		}
+@@ -396,6 +395,10 @@ static void i2c_nuc980_irq_master_TRx(st
+ 			nuc980_i2c2_stop(i2c, 0);
+ 			//return;
+ 		}
++		else if(is_lastmsg(i2c) && (i2c->msg->len == 1))
++		{
++			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI), (i2c->regs+CTL0));
++		}
+ 		else
+ 			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI_AA), (i2c->regs+CTL0));
+ 	}
+@@ -766,7 +769,7 @@ static int nuc980_i2c2_probe(struct plat
+ 	}
+ 
+ 	// Set Clock divider
+-	ret = clk_get_rate(i2c->clk)/(busfreq * 4) - 1;
++	ret = ((clk_get_rate(i2c->clk) * 10) / (busfreq * 4) + 5) / 10 - 1;
+ 	writel(ret & 0xffff, i2c->regs + CLKDIV);
+ 
+ 	writel((readl(i2c->regs+CTL0)|(0x1 << 6)), i2c->regs + CTL0);
+diff -uprN linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p3.c NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p3.c
+--- linux-4.4.194/drivers/i2c/busses/i2c-nuc980-p3.c	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-nuc980-p3.c	2021-06-20 19:14:48.000000000 -0700
+@@ -372,7 +372,6 @@ static void i2c_nuc980_irq_master_TRx(st
+ 
+ 		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+ 		{
+-			printk("\n i2c_0: ack was not received\n");
+ 			//writel((I2C_CTL_STA | I2C_CTL_STO | I2C_CTL_SI), (i2c->regs+CTL0));
+ 			nuc980_i2c3_stop(i2c, -ENXIO);
+ 		}
+@@ -396,6 +395,10 @@ static void i2c_nuc980_irq_master_TRx(st
+ 			nuc980_i2c3_stop(i2c, 0);
+ 			//return;
+ 		}
++		else if(is_lastmsg(i2c) && (i2c->msg->len == 1))
++		{
++			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI), (i2c->regs+CTL0));
++		}
+ 		else
+ 			writel(((readl(i2c->regs+CTL0) &~ (0x3C))|I2C_CTL_SI_AA), (i2c->regs+CTL0));
+ 	}
+@@ -766,7 +769,7 @@ static int nuc980_i2c3_probe(struct plat
+ 	}
+ 
+ 	// Set Clock divider
+-	ret = clk_get_rate(i2c->clk)/(busfreq * 4) - 1;
++	ret = ((clk_get_rate(i2c->clk) * 10) / (busfreq * 4) + 5) / 10 - 1;
+ 	writel(ret & 0xffff, i2c->regs + CLKDIV);
+ 
+ 	writel((readl(i2c->regs+CTL0)|(0x1 << 6)), i2c->regs + CTL0);
+diff -uprN linux-4.4.194/drivers/i2c/busses/i2c-riic.c NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-riic.c
+--- linux-4.4.194/drivers/i2c/busses/i2c-riic.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/i2c/busses/i2c-riic.c	2021-06-20 19:14:48.000000000 -0700
+@@ -212,6 +212,7 @@ static irqreturn_t riic_tend_isr(int irq
+ 	if (readb(riic->base + RIIC_ICSR2) & ICSR2_NACKF) {
+ 		/* We got a NACKIE */
+ 		readb(riic->base + RIIC_ICDRR);	/* dummy read */
++		riic_clear_set_bit(riic, ICSR2_NACKF, 0, RIIC_ICSR2);
+ 		riic->err = -ENXIO;
+ 	} else if (riic->bytes_left) {
+ 		return IRQ_NONE;

@@ -1,0 +1,173 @@
+diff -upN linux-4.4.194/arch/arm/mach-nuc980/dev.c NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/dev.c
+--- linux-4.4.194/arch/arm/mach-nuc980/dev.c	2021-08-05 23:48:46.543220000 -0700
++++ NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/dev.c	2021-06-20 19:14:48.000000000 -0700
+@@ -803,12 +803,23 @@ struct platform_device nuc980_device_i2c
+ /* spi device, spi flash info */
+ #ifdef CONFIG_MTD_M25P80
+ static struct mtd_partition nuc980_qspi0_flash_partitions[] = {
+-#ifdef CONFIG_BOARD_ETH2UART
++#if defined(CONFIG_BOARD_ETH2UART)
+ 	{
+ 		.name = "lighttpd",
+ 		.size = 0x0200000,
+ 		.offset = 0x0C00000,
+ 	},
++#elif defined(CONFIG_BOARD_CHILI)    /* chili board spi flash total 32Mbyte*/
++	{
++		.name = "kernel",    /* uboot, kernel 20Mbyte*/
++		.size = 0x1400000,
++		.offset = 0,
++	},
++	{
++		.name = "rootfs",    /* kernel 12Mbyte*/
++		.size = 0x0c00000,
++		.offset = 0x1400000,
++	},
+ #else
+ 	{
+ 		.name = "kernel",
+@@ -824,7 +835,7 @@ static struct mtd_partition nuc980_qspi0
+ };
+ 
+ static struct flash_platform_data nuc980_qspi0_flash_data = {
+-#ifdef CONFIG_BOARD_IOT
++#if defined(CONFIG_BOARD_IOT) || defined(CONFIG_BOARD_ETH2UART) || defined(CONFIG_BOARD_LORAG)
+ 	.name = "mt29f",
+ #else
+ 	.name = "m25p80",
+@@ -840,7 +851,7 @@ static struct flash_platform_data nuc980
+ static struct spi_board_info nuc980_qspi0_board_info[] __initdata = {
+ #ifdef CONFIG_MTD_M25P80
+ 	{
+-#ifdef CONFIG_BOARD_IOT
++#if defined(CONFIG_BOARD_IOT) || defined(CONFIG_BOARD_ETH2UART) || defined(CONFIG_BOARD_LORAG)
+ 		.modalias = "mt29f",
+ #else
+ 		.modalias = "m25p80",
+@@ -935,7 +946,7 @@ static struct spi_board_info nuc980_spi0
+ 		.modalias = "m25p80",
+ 		.max_speed_hz = 30000000,
+ 		.bus_num = 1,
+-		#if defined(CONFIG_BOARD_IOT)
++		#if defined(CONFIG_BOARD_IOT) || defined(CONFIG_BOARD_LORAG)
+ 		.chip_select = 1,	//use SS1
+ 		#else
+ 		.chip_select = 0,       //use SS0
+@@ -949,7 +960,7 @@ static struct spi_board_info nuc980_spi0
+ 		.modalias = "spidev",
+ 		.max_speed_hz = 75000000,
+ 		.bus_num = 1,
+-		#if defined(CONFIG_BOARD_IOT)
++		#if defined(CONFIG_BOARD_IOT) || defined(CONFIG_BOARD_LORAG)
+ 		.chip_select = 0,	//use SS0
+ 		#else
+ 		.chip_select = 1,	//use SS1
+@@ -1027,7 +1038,11 @@ static struct spi_board_info nuc980_spi1
+ 		.modalias = "m25p80",
+ 		.max_speed_hz = 30000000,
+ 		.bus_num = 2,
+-		.chip_select = 0,	//use SS0
++		#if defined(CONFIG_BOARD_IOT) || defined(CONFIG_BOARD_LORAG)
++		.chip_select = 1,	//use SS1
++		#else
++		.chip_select = 0,       //use SS0
++		#endif
+ 		.platform_data = &nuc980_spi1_flash_data,
+ 		.mode = SPI_MODE_0,
+ 	},
+@@ -1037,7 +1052,11 @@ static struct spi_board_info nuc980_spi1
+ 		.modalias = "spidev",
+ 		.max_speed_hz = 75000000,
+ 		.bus_num = 2,
++		#if defined(CONFIG_BOARD_IOT) || defined(CONFIG_BOARD_LORAG)
++		.chip_select = 0,	//use SS0
++		#else
+ 		.chip_select = 1,	//use SS1
++		#endif
+ 		.mode = SPI_MODE_0,
+ 	},
+ #endif
+@@ -1540,7 +1559,7 @@ struct platform_device nuc980_device_sc1
+ 
+ #endif
+ 
+-#if defined(CONFIG_NUC980_TIMER) || defined(CONFIG_NUC980_TIMER_MODULE)
++#if defined(CONFIG_NUC980_ETIMER) || defined(CONFIG_NUC980_ETIMER_MODULE)
+ static struct resource nuc980_timer_resource[] = {
+ 	[0] = {
+ 		.start = IRQ_TIMER0,
+@@ -1912,7 +1931,7 @@ static struct platform_device *nuc980_pu
+ 	&nuc980_device_nadc,
+ #endif
+ 
+-#if defined(CONFIG_NUC980_TIMER) || defined(CONFIG_NUC980_TIMER_MODULE)
++#if defined(CONFIG_NUC980_ETIMER) || defined(CONFIG_NUC980_ETIMER_MODULE)
+ 	&nuc980_device_timer0,
+ 	&nuc980_device_timer1,
+ 	&nuc980_device_timer2,
+Common subdirectories: linux-4.4.194/arch/arm/mach-nuc980/include and NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/include
+diff -upN linux-4.4.194/arch/arm/mach-nuc980/irq.c NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/irq.c
+--- linux-4.4.194/arch/arm/mach-nuc980/irq.c	2021-08-05 23:48:46.547220000 -0700
++++ NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/irq.c	2021-06-20 19:14:48.000000000 -0700
+@@ -393,9 +393,9 @@ static void nuc980_irq_ext_mask(struct i
+ 		__raw_writel(1<<IRQ_EXT0, REG_AIC_INTDIS0);
+ 	else if(d->irq==IRQ_EXT1_A1 || d->irq==IRQ_EXT1_A14)
+ 		__raw_writel(1 <<IRQ_EXT1, REG_AIC_INTDIS0);
+-	else if(d->irq==IRQ_EXT2_D0 || d->irq==IRQ_EXT2_E10 || IRQ_EXT2_B3 || IRQ_EXT2_B13)
++	else if(d->irq==IRQ_EXT2_D0 || d->irq==IRQ_EXT2_E10 || d->irq==IRQ_EXT2_B3 || d->irq==IRQ_EXT2_B13)
+ 		__raw_writel(1 <<IRQ_EXT2, REG_AIC_INTDIS0);
+-	else if(d->irq==IRQ_EXT3_D1 || d->irq==IRQ_EXT3_E12 || IRQ_EXT3_G15)
++	else if(d->irq==IRQ_EXT3_D1 || d->irq==IRQ_EXT3_E12 || d->irq==IRQ_EXT3_G15)
+ 		__raw_writel(1 <<IRQ_EXT3, REG_AIC_INTDIS0);
+ 	LEAVE();
+ }
+@@ -414,9 +414,9 @@ static void nuc980_irq_ext_unmask(struct
+ 		__raw_writel(1<<IRQ_EXT0, REG_AIC_INTEN0);
+ 	else if(d->irq==IRQ_EXT1_A1 || d->irq==IRQ_EXT1_A14)
+ 		__raw_writel(1 <<IRQ_EXT1, REG_AIC_INTEN0);
+-	else if(d->irq==IRQ_EXT2_D0 || d->irq==IRQ_EXT2_E10 || IRQ_EXT2_B3 || IRQ_EXT2_B13)
++	else if(d->irq==IRQ_EXT2_D0 || d->irq==IRQ_EXT2_E10 || d->irq==IRQ_EXT2_B3 || d->irq==IRQ_EXT2_B13)
+ 		__raw_writel(1 <<IRQ_EXT2, REG_AIC_INTEN0);
+-	else if(d->irq==IRQ_EXT3_D1 || d->irq==IRQ_EXT3_E12 || IRQ_EXT3_G15)
++	else if(d->irq==IRQ_EXT3_D1 || d->irq==IRQ_EXT3_E12 || d->irq==IRQ_EXT3_G15)
+ 		__raw_writel(1 <<IRQ_EXT3, REG_AIC_INTEN0);
+ 	LEAVE();
+ }
+diff -upN linux-4.4.194/arch/arm/mach-nuc980/Kconfig NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/Kconfig
+--- linux-4.4.194/arch/arm/mach-nuc980/Kconfig	2021-08-05 23:48:46.547220000 -0700
++++ NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/Kconfig	2021-06-20 19:14:48.000000000 -0700
+@@ -34,6 +34,14 @@ config BOARD_IOT
+ 	depends on !USE_OF
+ 	bool "NUC980 IoT Board"
+ 
++config BOARD_LORAG
++	depends on !USE_OF
++	bool "NUC980 LoRaG Board"	
++	
++config BOARD_CHILI
++	depends on !USE_OF
++	bool "NUC980 Chili Board"
++
+ config BOARD_USB8P
+ 	depends on !USE_OF
+ 	bool "NUC980 8 Port USB Board"
+diff -upN linux-4.4.194/arch/arm/mach-nuc980/mach-nuc980.c NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/mach-nuc980.c
+--- linux-4.4.194/arch/arm/mach-nuc980/mach-nuc980.c	2021-08-05 23:48:46.547220000 -0700
++++ NUC980-linux-4.4.y-master/arch/arm/mach-nuc980/mach-nuc980.c	2021-06-20 19:14:48.000000000 -0700
+@@ -104,7 +104,7 @@ static void __init nuc980_init_late(void
+ 	nuc980_init_suspend();
+ }
+ 
+-static void __init nuc980_reserve_memoey(void)
++static void __init nuc980_reserve_memory(void)
+ {
+ 	if(memblock_reserve(0, 1024) < 0)
+ 		printk("Failed to reserve memory 0x0~0x400\n");
+@@ -117,6 +117,6 @@ MACHINE_START(NUC980, "NUC980")
+ 	.init_machine = nuc980_init,
+ 	.init_time = nuc980_timer_init,
+ 	.init_late = nuc980_init_late,
+-	.reserve	= nuc980_reserve_memoey,
++	.reserve = nuc980_reserve_memory,
+ 	.restart = nuc980_restart,
+ MACHINE_END

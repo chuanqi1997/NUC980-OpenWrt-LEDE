@@ -1,0 +1,273 @@
+diff -uprN linux-4.4.194/drivers/dma/bcm2835-dma.c NUC980-linux-4.4.y-master/drivers/dma/bcm2835-dma.c
+--- linux-4.4.194/drivers/dma/bcm2835-dma.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/bcm2835-dma.c	2021-06-20 19:14:48.000000000 -0700
+@@ -595,8 +595,10 @@ static int bcm2835_dma_probe(struct plat
+ 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+ 
+ 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+-	if (rc)
++	if (rc) {
++		dev_err(&pdev->dev, "Unable to set DMA mask\n");
+ 		return rc;
++	}
+ 
+ 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
+ 	if (!od)
+diff -uprN linux-4.4.194/drivers/dma/coh901318.c NUC980-linux-4.4.y-master/drivers/dma/coh901318.c
+--- linux-4.4.194/drivers/dma/coh901318.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/coh901318.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1810,13 +1810,10 @@ static struct dma_chan *coh901318_xlate(
+ static int coh901318_config(struct coh901318_chan *cohc,
+ 			    struct coh901318_params *param)
+ {
+-	unsigned long flags;
+ 	const struct coh901318_params *p;
+ 	int channel = cohc->id;
+ 	void __iomem *virtbase = cohc->base->virtbase;
+ 
+-	spin_lock_irqsave(&cohc->lock, flags);
+-
+ 	if (param)
+ 		p = param;
+ 	else
+@@ -1836,8 +1833,6 @@ static int coh901318_config(struct coh90
+ 	coh901318_set_conf(cohc, p->config);
+ 	coh901318_set_ctrl(cohc, p->ctrl_lli_last);
+ 
+-	spin_unlock_irqrestore(&cohc->lock, flags);
+-
+ 	return 0;
+ }
+ 
+diff -uprN linux-4.4.194/drivers/dma/dma-jz4780.c NUC980-linux-4.4.y-master/drivers/dma/dma-jz4780.c
+--- linux-4.4.194/drivers/dma/dma-jz4780.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/dma-jz4780.c	2021-06-20 19:14:48.000000000 -0700
+@@ -576,7 +576,7 @@ static enum dma_status jz4780_dma_tx_sta
+ 					to_jz4780_dma_desc(vdesc), 0);
+ 	} else if (cookie == jzchan->desc->vdesc.tx.cookie) {
+ 		txstate->residue = jz4780_dma_desc_residue(jzchan, jzchan->desc,
+-			  (jzchan->curr_hwdesc + 1) % jzchan->desc->count);
++					jzchan->curr_hwdesc + 1);
+ 	} else
+ 		txstate->residue = 0;
+ 
+diff -uprN linux-4.4.194/drivers/dma/edma.c NUC980-linux-4.4.y-master/drivers/dma/edma.c
+--- linux-4.4.194/drivers/dma/edma.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/edma.c	2021-06-20 19:14:48.000000000 -0700
+@@ -2218,9 +2218,6 @@ static int edma_probe(struct platform_de
+ 
+ 	ecc->default_queue = info->default_queue;
+ 
+-	for (i = 0; i < ecc->num_slots; i++)
+-		edma_write_slot(ecc, i, &dummy_paramset);
+-
+ 	if (info->rsv) {
+ 		/* Set the reserved slots in inuse list */
+ 		rsv_slots = info->rsv->rsv_slots;
+@@ -2233,6 +2230,12 @@ static int edma_probe(struct platform_de
+ 		}
+ 	}
+ 
++	for (i = 0; i < ecc->num_slots; i++) {
++		/* Reset only unused - not reserved - paRAM slots */
++		if (!test_bit(i, ecc->slot_inuse))
++			edma_write_slot(ecc, i, &dummy_paramset);
++	}
++
+ 	/* Clear the xbar mapped channels in unused list */
+ 	xbar_chans = info->xbar_chans;
+ 	if (xbar_chans) {
+diff -uprN linux-4.4.194/drivers/dma/ioat/init.c NUC980-linux-4.4.y-master/drivers/dma/ioat/init.c
+--- linux-4.4.194/drivers/dma/ioat/init.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/ioat/init.c	2021-06-20 19:14:48.000000000 -0700
+@@ -128,7 +128,7 @@ static void
+ ioat_init_channel(struct ioatdma_device *ioat_dma,
+ 		  struct ioatdma_chan *ioat_chan, int idx);
+ static void ioat_intr_quirk(struct ioatdma_device *ioat_dma);
+-static int ioat_enumerate_channels(struct ioatdma_device *ioat_dma);
++static void ioat_enumerate_channels(struct ioatdma_device *ioat_dma);
+ static int ioat3_dma_self_test(struct ioatdma_device *ioat_dma);
+ 
+ static int ioat_dca_enabled = 1;
+@@ -593,7 +593,7 @@ static void ioat_dma_remove(struct ioatd
+  * ioat_enumerate_channels - find and initialize the device's channels
+  * @ioat_dma: the ioat dma device to be enumerated
+  */
+-static int ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
++static void ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
+ {
+ 	struct ioatdma_chan *ioat_chan;
+ 	struct device *dev = &ioat_dma->pdev->dev;
+@@ -612,7 +612,7 @@ static int ioat_enumerate_channels(struc
+ 	xfercap_log = readb(ioat_dma->reg_base + IOAT_XFERCAP_OFFSET);
+ 	xfercap_log &= 0x1f; /* bits [4:0] valid */
+ 	if (xfercap_log == 0)
+-		return 0;
++		return;
+ 	dev_dbg(dev, "%s: xfercap = %d\n", __func__, 1 << xfercap_log);
+ 
+ 	for (i = 0; i < dma->chancnt; i++) {
+@@ -629,7 +629,6 @@ static int ioat_enumerate_channels(struc
+ 		}
+ 	}
+ 	dma->chancnt = i;
+-	return i;
+ }
+ 
+ /**
+diff -uprN linux-4.4.194/drivers/dma/iop-adma.c NUC980-linux-4.4.y-master/drivers/dma/iop-adma.c
+--- linux-4.4.194/drivers/dma/iop-adma.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/iop-adma.c	2021-06-20 19:14:48.000000000 -0700
+@@ -126,9 +126,9 @@ static void __iop_adma_slot_cleanup(stru
+ 	list_for_each_entry_safe(iter, _iter, &iop_chan->chain,
+ 					chain_node) {
+ 		pr_debug("\tcookie: %d slot: %d busy: %d "
+-			"this_desc: %#x next_desc: %#x ack: %d\n",
++			"this_desc: %#x next_desc: %#llx ack: %d\n",
+ 			iter->async_tx.cookie, iter->idx, busy,
+-			iter->async_tx.phys, iop_desc_get_next_desc(iter),
++			iter->async_tx.phys, (u64)iop_desc_get_next_desc(iter),
+ 			async_tx_test_ack(&iter->async_tx));
+ 		prefetch(_iter);
+ 		prefetch(&_iter->async_tx);
+@@ -316,9 +316,9 @@ retry:
+ 				int i;
+ 				dev_dbg(iop_chan->device->common.dev,
+ 					"allocated slot: %d "
+-					"(desc %p phys: %#x) slots_per_op %d\n",
++					"(desc %p phys: %#llx) slots_per_op %d\n",
+ 					iter->idx, iter->hw_desc,
+-					iter->async_tx.phys, slots_per_op);
++					(u64)iter->async_tx.phys, slots_per_op);
+ 
+ 				/* pre-ack all but the last descriptor */
+ 				if (num_slots != slots_per_op)
+@@ -526,7 +526,7 @@ iop_adma_prep_dma_memcpy(struct dma_chan
+ 		return NULL;
+ 	BUG_ON(len > IOP_ADMA_MAX_BYTE_COUNT);
+ 
+-	dev_dbg(iop_chan->device->common.dev, "%s len: %u\n",
++	dev_dbg(iop_chan->device->common.dev, "%s len: %zu\n",
+ 		__func__, len);
+ 
+ 	spin_lock_bh(&iop_chan->lock);
+@@ -559,7 +559,7 @@ iop_adma_prep_dma_xor(struct dma_chan *c
+ 	BUG_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
+ 
+ 	dev_dbg(iop_chan->device->common.dev,
+-		"%s src_cnt: %d len: %u flags: %lx\n",
++		"%s src_cnt: %d len: %zu flags: %lx\n",
+ 		__func__, src_cnt, len, flags);
+ 
+ 	spin_lock_bh(&iop_chan->lock);
+@@ -592,7 +592,7 @@ iop_adma_prep_dma_xor_val(struct dma_cha
+ 	if (unlikely(!len))
+ 		return NULL;
+ 
+-	dev_dbg(iop_chan->device->common.dev, "%s src_cnt: %d len: %u\n",
++	dev_dbg(iop_chan->device->common.dev, "%s src_cnt: %d len: %zu\n",
+ 		__func__, src_cnt, len);
+ 
+ 	spin_lock_bh(&iop_chan->lock);
+@@ -630,7 +630,7 @@ iop_adma_prep_dma_pq(struct dma_chan *ch
+ 	BUG_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
+ 
+ 	dev_dbg(iop_chan->device->common.dev,
+-		"%s src_cnt: %d len: %u flags: %lx\n",
++		"%s src_cnt: %d len: %zu flags: %lx\n",
+ 		__func__, src_cnt, len, flags);
+ 
+ 	if (dmaf_p_disabled_continue(flags))
+@@ -693,7 +693,7 @@ iop_adma_prep_dma_pq_val(struct dma_chan
+ 		return NULL;
+ 	BUG_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
+ 
+-	dev_dbg(iop_chan->device->common.dev, "%s src_cnt: %d len: %u\n",
++	dev_dbg(iop_chan->device->common.dev, "%s src_cnt: %d len: %zu\n",
+ 		__func__, src_cnt, len);
+ 
+ 	spin_lock_bh(&iop_chan->lock);
+diff -uprN linux-4.4.194/drivers/dma/nuc980_dma.c NUC980-linux-4.4.y-master/drivers/dma/nuc980_dma.c
+--- linux-4.4.194/drivers/dma/nuc980_dma.c	2021-08-05 23:48:46.555220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/nuc980_dma.c	2021-06-20 19:14:48.000000000 -0700
+@@ -132,6 +132,7 @@ struct nuc980_dma_chan {
+ 	u32             id;
+ 	struct tasklet_struct       tasklet;
+ 	struct tasklet_struct       tasklet_sc;
++	int sc_flag;
+ 	/* protects the fields following */
+ 	spinlock_t          lock;
+ 	spinlock_t      wklock;
+@@ -847,6 +848,7 @@ static void nuc980_dma_sc_tasklet(unsign
+ 	//spin_unlock_irq(&edmac->lock);
+ 	if (callback) {
+ 		callback(callback_param);
++		edmac->sc_flag = 0;
+ 	}
+ 	LEAVE();
+ 
+@@ -943,6 +945,7 @@ void nuc980_dma_emac_interrupt(struct nu
+ 			else
+ 				done->remain = (PDMA1->DSCT[edmac->id].CTL & PDMA_DSCT_CTL_TXCNT_Msk)>>PDMA_DSCT_CTL_TXCNT_Pos;
+ 		}
++
+ 		tasklet_schedule(&edmac->tasklet);
+ 		//spin_unlock(&edmac->lock);
+ 		return;
+@@ -961,7 +964,10 @@ void nuc980_dma_emac_interrupt(struct nu
+ 		if(desc->config.en_sc==0) {
+ 			tasklet_schedule(&edmac->tasklet);
+ 		} else {
+-			tasklet_schedule(&edmac->tasklet_sc);
++			if(edmac->sc_flag==0){
++				tasklet_schedule(&edmac->tasklet_sc);
++				edmac->sc_flag = 1;
++			}
+ 		}
+ 	}
+ 	break;
+@@ -1545,6 +1551,7 @@ static int nuc980_dma_probe(struct platf
+ 		edmac->chan.private = 0;
+ 		edmac->regs = cdata->base;
+ 		edmac->irq = cdata->irq;
++		edmac->sc_flag = 0;
+ 		edmac->edma = edma;
+ 		edmac->id = (((unsigned int)(edmac->regs)&0xF0)>>4);
+ 		spin_lock_init(&edmac->lock);
+diff -uprN linux-4.4.194/drivers/dma/qcom_bam_dma.c NUC980-linux-4.4.y-master/drivers/dma/qcom_bam_dma.c
+--- linux-4.4.194/drivers/dma/qcom_bam_dma.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/qcom_bam_dma.c	2021-06-20 19:14:48.000000000 -0700
+@@ -671,7 +671,21 @@ static int bam_dma_terminate_all(struct
+ 
+ 	/* remove all transactions, including active transaction */
+ 	spin_lock_irqsave(&bchan->vc.lock, flag);
++	/*
++	 * If we have transactions queued, then some might be committed to the
++	 * hardware in the desc fifo.  The only way to reset the desc fifo is
++	 * to do a hardware reset (either by pipe or the entire block).
++	 * bam_chan_init_hw() will trigger a pipe reset, and also reinit the
++	 * pipe.  If the pipe is left disabled (default state after pipe reset)
++	 * and is accessed by a connected hardware engine, a fatal error in
++	 * the BAM will occur.  There is a small window where this could happen
++	 * with bam_chan_init_hw(), but it is assumed that the caller has
++	 * stopped activity on any attached hardware engine.  Make sure to do
++	 * this first so that the BAM hardware doesn't cause memory corruption
++	 * by accessing freed resources.
++	 */
+ 	if (bchan->curr_txd) {
++		bam_chan_init_hw(bchan, bchan->curr_txd->dir);
+ 		list_add(&bchan->curr_txd->vd.node, &bchan->vc.desc_issued);
+ 		bchan->curr_txd = NULL;
+ 	}
+diff -uprN linux-4.4.194/drivers/dma/timb_dma.c NUC980-linux-4.4.y-master/drivers/dma/timb_dma.c
+--- linux-4.4.194/drivers/dma/timb_dma.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/dma/timb_dma.c	2021-06-20 19:14:48.000000000 -0700
+@@ -552,7 +552,7 @@ static struct dma_async_tx_descriptor *t
+ 	}
+ 
+ 	dma_sync_single_for_device(chan2dmadev(chan), td_desc->txd.phys,
+-		td_desc->desc_list_len, DMA_MEM_TO_DEV);
++		td_desc->desc_list_len, DMA_TO_DEVICE);
+ 
+ 	return &td_desc->txd;
+ }

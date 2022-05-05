@@ -1,0 +1,11 @@
+--- a/drivers/usb/serial/option.c	2021-11-09 05:32:49.402011000 -0800
++++ b/drivers/usb/serial/option.c	2022-01-17 18:34:04.965147748 -0800
+@@ -1983,6 +1983,8 @@ static const struct usb_device_id option
+ 	  .driver_info = RSVD(4) | RSVD(5) },
+ 	{ USB_DEVICE_INTERFACE_CLASS(0x2cb7, 0x0105, 0xff),			/* Fibocom NL678 series */
+ 	  .driver_info = RSVD(6) },
++	{ USB_DEVICE(0x3763, 0x3c93),
++	  .driver_info = RSVD(3) }, 		/*Neoway N720 not use port 3*/
+ 	{ } /* Terminating entry */
+ };
+ MODULE_DEVICE_TABLE(usb, option_ids);

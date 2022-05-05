@@ -18,13 +18,18 @@ board_config_update
 
 case $board in
 
-NUC980-IOT-GateWay)
+nuc980-iot-gateway)
 	#ucidef_set_led_default "system" "power" "$board:green:power" "1"
 	ucidef_set_led_timer "system" "power" "nuc980:green:power" "1000" "1000"
 	#ucidef_set_led_netdev "eth" "ETH" "nuc980:green:lan" "eth0"
 	ucidef_set_led_netdev "eth" "eth0" "nuc980:green:lan" "eth0"
 	#set_wifi_led "$board:green:wlan"
 	#set_usb_led "$board:green:4g"
+	;;
+	
+nuc980-iot-cm100|\
+nuc980-iot-psm100)
+	ucidef_set_led_timer "system" "power" "nuc980:green:power" "1000" "1000"
 	;;
 
 esac

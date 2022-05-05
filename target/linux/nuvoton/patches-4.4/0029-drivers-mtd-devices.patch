@@ -1,0 +1,376 @@
+diff -uprN linux-4.4.194/drivers/mtd/devices/bcm47xxsflash.c NUC980-linux-4.4.y-master/drivers/mtd/devices/bcm47xxsflash.c
+--- linux-4.4.194/drivers/mtd/devices/bcm47xxsflash.c	2021-08-05 23:48:46.135220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/devices/bcm47xxsflash.c	2021-06-20 19:14:48.000000000 -0700
+@@ -2,7 +2,6 @@
+ #include <linux/module.h>
+ #include <linux/slab.h>
+ #include <linux/delay.h>
+-#include <linux/ioport.h>
+ #include <linux/mtd/mtd.h>
+ #include <linux/platform_device.h>
+ #include <linux/bcma/bcma.h>
+@@ -105,33 +104,16 @@ static int bcm47xxsflash_read(struct mtd
+ 			      size_t *retlen, u_char *buf)
+ {
+ 	struct bcm47xxsflash *b47s = mtd->priv;
+-	size_t orig_len = len;
+ 
+ 	/* Check address range */
+ 	if ((from + len) > mtd->size)
+ 		return -EINVAL;
+ 
+-	/* Read as much as possible using fast MMIO window */
+-	if (from < BCM47XXSFLASH_WINDOW_SZ) {
+-		size_t memcpy_len;
+-
+-		memcpy_len = min(len, (size_t)(BCM47XXSFLASH_WINDOW_SZ - from));
+-		memcpy_fromio(buf, b47s->window + from, memcpy_len);
+-		from += memcpy_len;
+-		len -= memcpy_len;
+-		buf += memcpy_len;
+-	}
+-
+-	/* Use indirect access for content out of the window */
+-	for (; len; len--) {
+-		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, from++);
+-		bcm47xxsflash_cmd(b47s, OPCODE_ST_READ4B);
+-		*buf++ = b47s->cc_read(b47s, BCMA_CC_FLASHDATA);
+-	}
+-
+-	*retlen = orig_len;
++	memcpy_fromio(buf, (void __iomem *)KSEG0ADDR(b47s->window + from),
++		      len);
++	*retlen = len;
+ 
+-	return orig_len;
++	return len;
+ }
+ 
+ static int bcm47xxsflash_write_st(struct mtd_info *mtd, u32 offset, size_t len,
+@@ -293,50 +275,19 @@ static void bcm47xxsflash_bcma_cc_write(
+ 
+ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
+ {
+-	struct device *dev = &pdev->dev;
+-	struct bcma_sflash *sflash = dev_get_platdata(dev);
++	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
+ 	struct bcm47xxsflash *b47s;
+-	struct resource *res;
+ 	int err;
+ 
+-	b47s = devm_kzalloc(dev, sizeof(*b47s), GFP_KERNEL);
++	b47s = devm_kzalloc(&pdev->dev, sizeof(*b47s), GFP_KERNEL);
+ 	if (!b47s)
+ 		return -ENOMEM;
+-
+-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	if (!res) {
+-		dev_err(dev, "invalid resource\n");
+-		return -EINVAL;
+-	}
+-	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+-				     res->name)) {
+-		dev_err(dev, "can't request region for resource %pR\n", res);
+-		return -EBUSY;
+-	}
++	sflash->priv = b47s;
+ 
+ 	b47s->bcma_cc = container_of(sflash, struct bcma_drv_cc, sflash);
+ 	b47s->cc_read = bcm47xxsflash_bcma_cc_read;
+ 	b47s->cc_write = bcm47xxsflash_bcma_cc_write;
+ 
+-	/*
+-	 * On old MIPS devices cache was magically invalidated when needed,
+-	 * allowing us to use cached access and gain some performance. Trying
+-	 * the same on ARM based BCM53573 results in flash corruptions, we need
+-	 * to use uncached access for it.
+-	 *
+-	 * It may be arch specific, but right now there is only 1 ARM SoC using
+-	 * this driver, so let's follow Broadcom's reference code and check
+-	 * ChipCommon revision.
+-	 */
+-	if (b47s->bcma_cc->core->id.rev == 54)
+-		b47s->window = ioremap_nocache(res->start, resource_size(res));
+-	else
+-		b47s->window = ioremap_cache(res->start, resource_size(res));
+-	if (!b47s->window) {
+-		dev_err(dev, "ioremap failed for resource %pR\n", res);
+-		return -ENOMEM;
+-	}
+-
+ 	switch (b47s->bcma_cc->capabilities & BCMA_CC_CAP_FLASHT) {
+ 	case BCMA_CC_FLASHT_STSER:
+ 		b47s->type = BCM47XXSFLASH_TYPE_ST;
+@@ -346,17 +297,15 @@ static int bcm47xxsflash_bcma_probe(stru
+ 		break;
+ 	}
+ 
++	b47s->window = sflash->window;
+ 	b47s->blocksize = sflash->blocksize;
+ 	b47s->numblocks = sflash->numblocks;
+ 	b47s->size = sflash->size;
+ 	bcm47xxsflash_fill_mtd(b47s, &pdev->dev);
+ 
+-	platform_set_drvdata(pdev, b47s);
+-
+ 	err = mtd_device_parse_register(&b47s->mtd, probes, NULL, NULL, 0);
+ 	if (err) {
+ 		pr_err("Failed to register MTD device: %d\n", err);
+-		iounmap(b47s->window);
+ 		return err;
+ 	}
+ 
+@@ -368,10 +317,10 @@ static int bcm47xxsflash_bcma_probe(stru
+ 
+ static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
+ {
+-	struct bcm47xxsflash *b47s = platform_get_drvdata(pdev);
++	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
++	struct bcm47xxsflash *b47s = sflash->priv;
+ 
+ 	mtd_device_unregister(&b47s->mtd);
+-	iounmap(b47s->window);
+ 
+ 	return 0;
+ }
+diff -uprN linux-4.4.194/drivers/mtd/devices/bcm47xxsflash.h NUC980-linux-4.4.y-master/drivers/mtd/devices/bcm47xxsflash.h
+--- linux-4.4.194/drivers/mtd/devices/bcm47xxsflash.h	2021-08-05 23:48:46.135220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/devices/bcm47xxsflash.h	2021-06-20 19:14:48.000000000 -0700
+@@ -3,8 +3,6 @@
+ 
+ #include <linux/mtd/mtd.h>
+ 
+-#define BCM47XXSFLASH_WINDOW_SZ			SZ_16M
+-
+ /* Used for ST flashes only. */
+ #define OPCODE_ST_WREN		0x0006		/* Write Enable */
+ #define OPCODE_ST_WRDIS		0x0004		/* Write Disable */
+@@ -18,7 +16,6 @@
+ #define OPCODE_ST_RES		0x03ab		/* Read Electronic Signature */
+ #define OPCODE_ST_CSA		0x1000		/* Keep chip select asserted */
+ #define OPCODE_ST_SSE		0x0220		/* Sub-sector Erase */
+-#define OPCODE_ST_READ4B	0x6313		/* Read Data Bytes in 4Byte addressing mode */
+ 
+ /* Used for Atmel flashes only. */
+ #define OPCODE_AT_READ				0x07e8
+@@ -68,8 +65,7 @@ struct bcm47xxsflash {
+ 
+ 	enum bcm47xxsflash_type type;
+ 
+-	void __iomem *window;
+-
++	u32 window;
+ 	u32 blocksize;
+ 	u16 numblocks;
+ 	u32 size;
+diff -uprN linux-4.4.194/drivers/mtd/devices/block2mtd.c NUC980-linux-4.4.y-master/drivers/mtd/devices/block2mtd.c
+--- linux-4.4.194/drivers/mtd/devices/block2mtd.c	2021-08-05 23:48:46.295220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/devices/block2mtd.c	2021-06-20 19:14:48.000000000 -0700
+@@ -26,7 +26,6 @@
+ #include <linux/list.h>
+ #include <linux/init.h>
+ #include <linux/mtd/mtd.h>
+-#include <linux/mtd/partitions.h>
+ #include <linux/mutex.h>
+ #include <linux/mount.h>
+ #include <linux/slab.h>
+@@ -220,7 +219,7 @@ static void block2mtd_free_device(struct
+ 
+ 
+ static struct block2mtd_dev *add_device(char *devname, int erase_size,
+-		const char *mtdname, int timeout)
++		int timeout)
+ {
+ #ifndef MODULE
+ 	int i;
+@@ -228,7 +227,6 @@ static struct block2mtd_dev *add_device(
+ 	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
+ 	struct block_device *bdev = ERR_PTR(-ENODEV);
+ 	struct block2mtd_dev *dev;
+-	struct mtd_partition *part;
+ 	char *name;
+ 
+ 	if (!devname)
+@@ -285,16 +283,13 @@ static struct block2mtd_dev *add_device(
+ 
+ 	/* Setup the MTD structure */
+ 	/* make the name contain the block device in */
+-	if (!mtdname)
+-		mtdname = devname;
+-	name = kmalloc(strlen(mtdname) + 1, GFP_KERNEL);
++	name = kasprintf(GFP_KERNEL, "block2mtd: %s", devname);
+ 	if (!name)
+ 		goto err_destroy_mutex;
+ 
+-	strcpy(name, mtdname);
+ 	dev->mtd.name = name;
+ 
+-	dev->mtd.size = dev->blkdev->bd_inode->i_size & PAGE_MASK & ~(erase_size - 1);
++	dev->mtd.size = dev->blkdev->bd_inode->i_size & PAGE_MASK;
+ 	dev->mtd.erasesize = erase_size;
+ 	dev->mtd.writesize = 1;
+ 	dev->mtd.writebufsize = PAGE_SIZE;
+@@ -307,11 +302,7 @@ static struct block2mtd_dev *add_device(
+ 	dev->mtd.priv = dev;
+ 	dev->mtd.owner = THIS_MODULE;
+ 
+-	part = kzalloc(sizeof(struct mtd_partition), GFP_KERNEL);
+-	part->name = name;
+-	part->offset = 0;
+-	part->size = dev->mtd.size;
+-	if (mtd_device_register(&dev->mtd, part, 1)) {
++	if (mtd_device_register(&dev->mtd, NULL, 0)) {
+ 		/* Device didn't get added, so free the entry */
+ 		goto err_destroy_mutex;
+ 	}
+@@ -319,7 +310,8 @@ static struct block2mtd_dev *add_device(
+ 	list_add(&dev->list, &blkmtd_device_list);
+ 	pr_info("mtd%d: [%s] erase_size = %dKiB [%d]\n",
+ 		dev->mtd.index,
+-		mtdname, dev->mtd.erasesize >> 10, dev->mtd.erasesize);
++		dev->mtd.name + strlen("block2mtd: "),
++		dev->mtd.erasesize >> 10, dev->mtd.erasesize);
+ 	return dev;
+ 
+ err_destroy_mutex:
+@@ -392,7 +384,7 @@ static int block2mtd_setup2(const char *
+ 	/* 80 for device, 12 for erase size, 80 for name, 8 for timeout */
+ 	char buf[80 + 12 + 80 + 8];
+ 	char *str = buf;
+-	char *token[4];
++	char *token[2];
+ 	char *name;
+ 	size_t erase_size = PAGE_SIZE;
+ 	unsigned long timeout = MTD_DEFAULT_TIMEOUT;
+@@ -406,7 +398,7 @@ static int block2mtd_setup2(const char *
+ 	strcpy(str, val);
+ 	kill_final_newline(str);
+ 
+-	for (i = 0; i < 4; i++)
++	for (i = 0; i < 2; i++)
+ 		token[i] = strsep(&str, ",");
+ 
+ 	if (str) {
+@@ -432,13 +424,8 @@ static int block2mtd_setup2(const char *
+ 			return 0;
+ 		}
+ 	}
+-	if (token[2] && (strlen(token[2]) + 1 > 80))
+-		pr_err("mtd device name too long\n");
+ 
+-	if (token[3] && kstrtoul(token[3], 0, &timeout))
+-		pr_err("invalid timeout\n");
+-
+-	add_device(name, erase_size, token[2], timeout);
++	add_device(name, erase_size, timeout);
+ 
+ 	return 0;
+ }
+@@ -472,7 +459,7 @@ static int block2mtd_setup(const char *v
+ 
+ 
+ module_param_call(block2mtd, block2mtd_setup, NULL, NULL, 0200);
+-MODULE_PARM_DESC(block2mtd, "Device to use. \"block2mtd=<dev>[,<erasesize>[,<name>[,<timeout>]]]\"");
++MODULE_PARM_DESC(block2mtd, "Device to use. \"block2mtd=<dev>[,<erasesize>]\"");
+ 
+ static int __init block2mtd_init(void)
+ {
+diff -uprN linux-4.4.194/drivers/mtd/devices/Kconfig NUC980-linux-4.4.y-master/drivers/mtd/devices/Kconfig
+--- linux-4.4.194/drivers/mtd/devices/Kconfig	2021-08-05 23:48:46.135220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/devices/Kconfig	2021-06-20 19:14:48.000000000 -0700
+@@ -114,7 +114,7 @@ config MTD_SST25L
+ 
+ config MTD_BCM47XXSFLASH
+ 	tristate "R/O support for serial flash on BCMA bus"
+-	depends on BCMA_SFLASH && (MIPS || ARM)
++	depends on BCMA_SFLASH
+ 	help
+ 	  BCMA bus can have various flash memories attached, they are
+ 	  registered by bcma as platform devices. This enables driver for
+diff -uprN linux-4.4.194/drivers/mtd/devices/m25p80.c NUC980-linux-4.4.y-master/drivers/mtd/devices/m25p80.c
+--- linux-4.4.194/drivers/mtd/devices/m25p80.c	2021-08-05 23:48:46.139220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/devices/m25p80.c	2021-06-20 19:14:48.000000000 -0700
+@@ -131,28 +131,6 @@ static int m25p80_read(struct spi_nor *n
+ 	/* convert the dummy cycles to the number of bytes */
+ 	dummy /= 8;
+ 
+-	if (spi_flash_read_supported(spi)) {
+-		struct spi_flash_read_message msg;
+-		int ret;
+-
+-		memset(&msg, 0, sizeof(msg));
+-
+-		msg.buf = buf;
+-		msg.from = from;
+-		msg.len = len;
+-		msg.read_opcode = nor->read_opcode;
+-		msg.addr_width = nor->addr_width;
+-		msg.dummy_bytes = dummy;
+-		/* TODO: Support other combinations */
+-		msg.opcode_nbits = SPI_NBITS_SINGLE;
+-		msg.addr_nbits = SPI_NBITS_SINGLE;
+-		msg.data_nbits = m25p80_rx_nbits(nor);
+-
+-		ret = spi_flash_read(spi, &msg);
+-		*retlen = msg.retlen;
+-		return ret;
+-	}
+-
+ 	spi_message_init(&m);
+ 	memset(t, 0, (sizeof t));
+ 
+diff -uprN linux-4.4.194/drivers/mtd/devices/spear_smi.c NUC980-linux-4.4.y-master/drivers/mtd/devices/spear_smi.c
+--- linux-4.4.194/drivers/mtd/devices/spear_smi.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/devices/spear_smi.c	2021-06-20 19:14:48.000000000 -0700
+@@ -595,6 +595,26 @@ static int spear_mtd_read(struct mtd_inf
+ 	return 0;
+ }
+ 
++/*
++ * The purpose of this function is to ensure a memcpy_toio() with byte writes
++ * only. Its structure is inspired from the ARM implementation of _memcpy_toio()
++ * which also does single byte writes but cannot be used here as this is just an
++ * implementation detail and not part of the API. Not mentioning the comment
++ * stating that _memcpy_toio() should be optimized.
++ */
++static void spear_smi_memcpy_toio_b(volatile void __iomem *dest,
++				    const void *src, size_t len)
++{
++	const unsigned char *from = src;
++
++	while (len) {
++		len--;
++		writeb(*from, dest);
++		from++;
++		dest++;
++	}
++}
++
+ static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
+ 		void __iomem *dest, const void *src, size_t len)
+ {
+@@ -617,7 +637,23 @@ static inline int spear_smi_cpy_toio(str
+ 	ctrlreg1 = readl(dev->io_base + SMI_CR1);
+ 	writel((ctrlreg1 | WB_MODE) & ~SW_MODE, dev->io_base + SMI_CR1);
+ 
+-	memcpy_toio(dest, src, len);
++	/*
++	 * In Write Burst mode (WB_MODE), the specs states that writes must be:
++	 * - incremental
++	 * - of the same size
++	 * The ARM implementation of memcpy_toio() will optimize the number of
++	 * I/O by using as much 4-byte writes as possible, surrounded by
++	 * 2-byte/1-byte access if:
++	 * - the destination is not 4-byte aligned
++	 * - the length is not a multiple of 4-byte.
++	 * Avoid this alternance of write access size by using our own 'byte
++	 * access' helper if at least one of the two conditions above is true.
++	 */
++	if (IS_ALIGNED(len, sizeof(u32)) &&
++	    IS_ALIGNED((uintptr_t)dest, sizeof(u32)))
++		memcpy_toio(dest, src, len);
++	else
++		spear_smi_memcpy_toio_b(dest, src, len);
+ 
+ 	writel(ctrlreg1, dev->io_base + SMI_CR1);
+ 

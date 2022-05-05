@@ -1,0 +1,376 @@
+diff -uprN linux-4.4.194/drivers/usb/host/ehci.h NUC980-linux-4.4.y-master/drivers/usb/host/ehci.h
+--- linux-4.4.194/drivers/usb/host/ehci.h	2021-08-05 23:48:46.219220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/ehci.h	2021-06-20 19:14:48.000000000 -0700
+@@ -227,7 +227,6 @@ struct ehci_hcd {			/* one per controlle
+ 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
+ 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
+ 	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
+-	unsigned		ignore_oc:1;
+ 
+ 	/* required for usb32 quirk */
+ 	#define OHCI_CTRL_HCFS          (3 << 6)
+diff -uprN linux-4.4.194/drivers/usb/host/ehci-hcd.c NUC980-linux-4.4.y-master/drivers/usb/host/ehci-hcd.c
+--- linux-4.4.194/drivers/usb/host/ehci-hcd.c	2021-08-05 23:48:46.571220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/ehci-hcd.c	2021-06-20 19:14:48.000000000 -0700
+@@ -639,7 +639,7 @@ static int ehci_run (struct usb_hcd *hcd
+ 		"USB %x.%x started, EHCI %x.%02x%s\n",
+ 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
+ 		temp >> 8, temp & 0xff,
+-		(ignore_oc || ehci->ignore_oc) ? ", overcurrent ignored" : "");
++		ignore_oc ? ", overcurrent ignored" : "");
+ 
+ 	ehci_writel(ehci, INTR_MASK,
+ 		    &ehci->regs->intr_enable); /* Turn On Interrupts */
+diff -uprN linux-4.4.194/drivers/usb/host/ehci-hub.c NUC980-linux-4.4.y-master/drivers/usb/host/ehci-hub.c
+--- linux-4.4.194/drivers/usb/host/ehci-hub.c	2021-08-05 23:48:46.219220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/ehci-hub.c	2021-06-20 19:14:48.000000000 -0700
+@@ -634,7 +634,7 @@ ehci_hub_status_data (struct usb_hcd *hc
+ 	 * always set, seem to clear PORT_OCC and PORT_CSC when writing to
+ 	 * PORT_POWER; that's surprising, but maybe within-spec.
+ 	 */
+-	if (!ignore_oc && !ehci->ignore_oc)
++	if (!ignore_oc)
+ 		mask = PORT_CSC | PORT_PEC | PORT_OCC;
+ 	else
+ 		mask = PORT_CSC | PORT_PEC;
+@@ -996,7 +996,7 @@ int ehci_hub_control(
+ 		if (temp & PORT_PEC)
+ 			status |= USB_PORT_STAT_C_ENABLE << 16;
+ 
+-		if ((temp & PORT_OCC) && (!ignore_oc && !ehci->ignore_oc)){
++		if ((temp & PORT_OCC) && !ignore_oc){
+ 			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
+ 
+ 			/*
+diff -uprN linux-4.4.194/drivers/usb/host/ehci-platform.c NUC980-linux-4.4.y-master/drivers/usb/host/ehci-platform.c
+--- linux-4.4.194/drivers/usb/host/ehci-platform.c	2021-08-05 23:48:46.219220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/ehci-platform.c	2021-06-20 19:14:48.000000000 -0700
+@@ -254,8 +254,6 @@ static int ehci_platform_probe(struct pl
+ 		hcd->has_tt = 1;
+ 	if (pdata->reset_on_resume)
+ 		priv->reset_on_resume = true;
+-	if (pdata->ignore_oc)
+-		ehci->ignore_oc = 1;
+ 
+ #ifndef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
+ 	if (ehci->big_endian_mmio) {
+diff -uprN linux-4.4.194/drivers/usb/host/pci-quirks.c NUC980-linux-4.4.y-master/drivers/usb/host/pci-quirks.c
+--- linux-4.4.194/drivers/usb/host/pci-quirks.c	2021-08-05 23:48:46.391220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/pci-quirks.c	2021-06-20 19:14:48.000000000 -0700
+@@ -98,8 +98,6 @@ struct amd_chipset_type {
+ 	u8 rev;
+ };
+ 
+-#ifndef CONFIG_PCI_DISABLE_COMMON_QUIRKS
+-
+ static struct amd_chipset_info {
+ 	struct pci_dev	*nb_dev;
+ 	struct pci_dev	*smbus_dev;
+@@ -467,10 +465,6 @@ void usb_amd_dev_put(void)
+ }
+ EXPORT_SYMBOL_GPL(usb_amd_dev_put);
+ 
+-#endif /* CONFIG_PCI_DISABLE_COMMON_QUIRKS */
+-
+-#if IS_ENABLED(CONFIG_USB_UHCI_HCD)
+-
+ /*
+  * Make sure the controller is completely inactive, unable to
+  * generate interrupts or do DMA.
+@@ -550,17 +544,8 @@ reset_needed:
+ 	uhci_reset_hc(pdev, base);
+ 	return 1;
+ }
+-#else
+-int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base)
+-{
+-	return 0;
+-}
+-
+-#endif
+ EXPORT_SYMBOL_GPL(uhci_check_and_reset_hc);
+ 
+-#ifndef CONFIG_PCI_DISABLE_COMMON_QUIRKS
+-
+ static inline int io_type_enabled(struct pci_dev *pdev, unsigned int mask)
+ {
+ 	u16 cmd;
+@@ -1125,4 +1110,3 @@ static void quirk_usb_early_handoff(stru
+ }
+ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
+ 			PCI_CLASS_SERIAL_USB, 8, quirk_usb_early_handoff);
+-#endif
+diff -uprN linux-4.4.194/drivers/usb/host/pci-quirks.h NUC980-linux-4.4.y-master/drivers/usb/host/pci-quirks.h
+--- linux-4.4.194/drivers/usb/host/pci-quirks.h	2021-08-05 23:48:46.391220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/pci-quirks.h	2021-06-20 19:14:48.000000000 -0700
+@@ -4,9 +4,6 @@
+ #ifdef CONFIG_PCI
+ void uhci_reset_hc(struct pci_dev *pdev, unsigned long base);
+ int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base);
+-#endif  /* CONFIG_PCI */
+-
+-#if defined(CONFIG_PCI) && !defined(CONFIG_PCI_DISABLE_COMMON_QUIRKS)
+ int usb_amd_find_chipset_info(void);
+ int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev);
+ bool usb_amd_hang_symptom_quirk(void);
+@@ -19,24 +16,11 @@ void usb_disable_xhci_ports(struct pci_d
+ void sb800_prefetch(struct device *dev, int on);
+ #else
+ struct pci_dev;
+-static inline int usb_amd_find_chipset_info(void)
+-{
+-	return 0;
+-}
+-static inline bool usb_amd_hang_symptom_quirk(void)
+-{
+-	return false;
+-}
+-static inline bool usb_amd_prefetch_quirk(void)
+-{
+-	return false;
+-}
+ static inline void usb_amd_quirk_pll_disable(void) {}
+ static inline void usb_amd_quirk_pll_enable(void) {}
+ static inline void usb_amd_dev_put(void) {}
+ static inline void usb_disable_xhci_ports(struct pci_dev *xhci_pdev) {}
+ static inline void sb800_prefetch(struct device *dev, int on) {}
+-static inline void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev) {}
+-#endif
++#endif  /* CONFIG_PCI */
+ 
+ #endif  /*  __LINUX_USB_PCI_QUIRKS_H  */
+diff -uprN linux-4.4.194/drivers/usb/host/xhci.c NUC980-linux-4.4.y-master/drivers/usb/host/xhci.c
+--- linux-4.4.194/drivers/usb/host/xhci.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/xhci.c	2021-06-20 19:14:48.000000000 -0700
+@@ -754,11 +754,8 @@ void xhci_shutdown(struct usb_hcd *hcd)
+ 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+ 			"xhci_shutdown completed - status = %x",
+ 			readl(&xhci->op_regs->status));
+-
+-	/* Yet another workaround for spurious wakeups at shutdown with HSW */
+-	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
+-		pci_set_power_state(to_pci_dev(hcd->self.controller), PCI_D3hot);
+ }
++EXPORT_SYMBOL_GPL(xhci_shutdown);
+ 
+ #ifdef CONFIG_PM
+ static void xhci_save_registers(struct xhci_hcd *xhci)
+@@ -929,7 +926,7 @@ static bool xhci_pending_portevent(struc
+ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
+ {
+ 	int			rc = 0;
+-	unsigned int		delay = XHCI_MAX_HALT_USEC;
++	unsigned int		delay = XHCI_MAX_HALT_USEC * 2;
+ 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
+ 	u32			command;
+ 
+@@ -981,7 +978,7 @@ int xhci_suspend(struct xhci_hcd *xhci,
+ 	command |= CMD_CSS;
+ 	writel(command, &xhci->op_regs->command);
+ 	if (xhci_handshake(&xhci->op_regs->status,
+-				STS_SAVE, 0, 10 * 1000)) {
++				STS_SAVE, 0, 20 * 1000)) {
+ 		xhci_warn(xhci, "WARN: xHC save state timeout\n");
+ 		spin_unlock_irq(&xhci->lock);
+ 		return -ETIMEDOUT;
+@@ -1041,6 +1038,18 @@ int xhci_resume(struct xhci_hcd *xhci, b
+ 		hibernated = true;
+ 
+ 	if (!hibernated) {
++		/*
++		 * Some controllers might lose power during suspend, so wait
++		 * for controller not ready bit to clear, just as in xHC init.
++		 */
++		retval = xhci_handshake(&xhci->op_regs->status,
++					STS_CNR, 0, 10 * 1000 * 1000);
++		if (retval) {
++			xhci_warn(xhci, "Controller not ready at resume %d\n",
++				  retval);
++			spin_unlock_irq(&xhci->lock);
++			return retval;
++		}
+ 		/* step 1: restore register */
+ 		xhci_restore_registers(xhci);
+ 		/* step 2: initialize command ring buffer */
+@@ -4529,12 +4538,12 @@ static int xhci_update_timeout_for_endpo
+ 	alt_timeout = xhci_call_host_update_timeout_for_endpoint(xhci, udev,
+ 		desc, state, timeout);
+ 
+-	/* If we found we can't enable hub-initiated LPM, or
++	/* If we found we can't enable hub-initiated LPM, and
+ 	 * the U1 or U2 exit latency was too high to allow
+-	 * device-initiated LPM as well, just stop searching.
++	 * device-initiated LPM as well, then we will disable LPM
++	 * for this device, so stop searching any further.
+ 	 */
+-	if (alt_timeout == USB3_LPM_DISABLED ||
+-			alt_timeout == USB3_LPM_DEVICE_INITIATED) {
++	if (alt_timeout == USB3_LPM_DISABLED) {
+ 		*timeout = alt_timeout;
+ 		return -E2BIG;
+ 	}
+@@ -4645,10 +4654,12 @@ static u16 xhci_calculate_lpm_timeout(st
+ 		if (intf->dev.driver) {
+ 			driver = to_usb_driver(intf->dev.driver);
+ 			if (driver && driver->disable_hub_initiated_lpm) {
+-				dev_dbg(&udev->dev, "Hub-initiated %s disabled "
+-						"at request of driver %s\n",
+-						state_name, driver->name);
+-				return xhci_get_timeout_no_hub_lpm(udev, state);
++				dev_dbg(&udev->dev, "Hub-initiated %s disabled at request of driver %s\n",
++					state_name, driver->name);
++				timeout = xhci_get_timeout_no_hub_lpm(udev,
++								      state);
++				if (timeout == USB3_LPM_DISABLED)
++					return timeout;
+ 			}
+ 		}
+ 
+diff -uprN linux-4.4.194/drivers/usb/host/xhci.h NUC980-linux-4.4.y-master/drivers/usb/host/xhci.h
+--- linux-4.4.194/drivers/usb/host/xhci.h	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/xhci.h	2021-06-20 19:14:48.000000000 -0700
+@@ -314,6 +314,7 @@ struct xhci_op_regs {
+ #define XDEV_U3		(0x3 << 5)
+ #define XDEV_INACTIVE	(0x6 << 5)
+ #define XDEV_POLLING	(0x7 << 5)
++#define XDEV_RECOVERY	(0x8 << 5)
+ #define XDEV_COMP_MODE  (0xa << 5)
+ #define XDEV_RESUME	(0xf << 5)
+ /* true: port has power (see HCC_PPC) */
+@@ -1833,6 +1834,7 @@ int xhci_run(struct usb_hcd *hcd);
+ void xhci_stop(struct usb_hcd *hcd);
+ void xhci_shutdown(struct usb_hcd *hcd);
+ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
++void xhci_shutdown(struct usb_hcd *hcd);
+ void xhci_init_driver(struct hc_driver *drv,
+ 		      const struct xhci_driver_overrides *over);
+ 
+diff -uprN linux-4.4.194/drivers/usb/host/xhci-hub.c NUC980-linux-4.4.y-master/drivers/usb/host/xhci-hub.c
+--- linux-4.4.194/drivers/usb/host/xhci-hub.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/xhci-hub.c	2021-06-20 19:14:48.000000000 -0700
+@@ -704,7 +704,7 @@ static u32 xhci_get_port_status(struct u
+ 		struct xhci_bus_state *bus_state,
+ 		__le32 __iomem **port_array,
+ 		u16 wIndex, u32 raw_port_status,
+-		unsigned long flags)
++		unsigned long *flags)
+ 	__releases(&xhci->lock)
+ 	__acquires(&xhci->lock)
+ {
+@@ -736,6 +736,14 @@ static u32 xhci_get_port_status(struct u
+ 			status |= USB_PORT_STAT_C_BH_RESET << 16;
+ 		if ((raw_port_status & PORT_CEC))
+ 			status |= USB_PORT_STAT_C_CONFIG_ERROR << 16;
++
++		/* USB3 remote wake resume signaling completed */
++		if (bus_state->port_remote_wakeup & (1 << wIndex) &&
++		    (raw_port_status & PORT_PLS_MASK) != XDEV_RESUME &&
++		    (raw_port_status & PORT_PLS_MASK) != XDEV_RECOVERY) {
++			bus_state->port_remote_wakeup &= ~(1 << wIndex);
++			usb_hcd_end_port_resume(&hcd->self, wIndex);
++		}
+ 	}
+ 
+ 	if (hcd->speed < HCD_USB3) {
+@@ -786,12 +794,12 @@ static u32 xhci_get_port_status(struct u
+ 			xhci_set_link_state(xhci, port_array, wIndex,
+ 					XDEV_U0);
+ 
+-			spin_unlock_irqrestore(&xhci->lock, flags);
++			spin_unlock_irqrestore(&xhci->lock, *flags);
+ 			time_left = wait_for_completion_timeout(
+ 					&bus_state->rexit_done[wIndex],
+ 					msecs_to_jiffies(
+ 						XHCI_MAX_REXIT_TIMEOUT_MS));
+-			spin_lock_irqsave(&xhci->lock, flags);
++			spin_lock_irqsave(&xhci->lock, *flags);
+ 
+ 			if (time_left) {
+ 				slot_id = xhci_find_slot_id_by_port(hcd,
+@@ -937,7 +945,7 @@ int xhci_hub_control(struct usb_hcd *hcd
+ 			break;
+ 		}
+ 		status = xhci_get_port_status(hcd, bus_state, port_array,
+-				wIndex, temp, flags);
++				wIndex, temp, &flags);
+ 		if (status == 0xffffffff)
+ 			goto error;
+ 
+diff -uprN linux-4.4.194/drivers/usb/host/xhci-mem.c NUC980-linux-4.4.y-master/drivers/usb/host/xhci-mem.c
+--- linux-4.4.194/drivers/usb/host/xhci-mem.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/xhci-mem.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1928,10 +1928,14 @@ no_bw:
+ 	kfree(xhci->port_array);
+ 	kfree(xhci->rh_bw);
+ 	kfree(xhci->ext_caps);
++	kfree(xhci->usb2_rhub.psi);
++	kfree(xhci->usb3_rhub.psi);
+ 
+ 	xhci->usb2_ports = NULL;
+ 	xhci->usb3_ports = NULL;
+ 	xhci->port_array = NULL;
++	xhci->usb2_rhub.psi = NULL;
++	xhci->usb3_rhub.psi = NULL;
+ 	xhci->rh_bw = NULL;
+ 	xhci->ext_caps = NULL;
+ 
+diff -uprN linux-4.4.194/drivers/usb/host/xhci-pci.c NUC980-linux-4.4.y-master/drivers/usb/host/xhci-pci.c
+--- linux-4.4.194/drivers/usb/host/xhci-pci.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/xhci-pci.c	2021-06-20 19:14:48.000000000 -0700
+@@ -446,6 +446,18 @@ static int xhci_pci_resume(struct usb_hc
+ }
+ #endif /* CONFIG_PM */
+ 
++static void xhci_pci_shutdown(struct usb_hcd *hcd)
++{
++	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
++	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
++
++	xhci_shutdown(hcd);
++
++	/* Yet another workaround for spurious wakeups at shutdown with HSW */
++	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
++		pci_set_power_state(pdev, PCI_D3hot);
++}
++
+ /*-------------------------------------------------------------------------*/
+ 
+ /* PCI driver selection metadata; PCI hotplugging uses this */
+@@ -481,6 +493,7 @@ static int __init xhci_pci_init(void)
+ #ifdef CONFIG_PM
+ 	xhci_pci_hc_driver.pci_suspend = xhci_pci_suspend;
+ 	xhci_pci_hc_driver.pci_resume = xhci_pci_resume;
++	xhci_pci_hc_driver.shutdown = xhci_pci_shutdown;
+ #endif
+ 	return pci_register_driver(&xhci_pci_driver);
+ }
+diff -uprN linux-4.4.194/drivers/usb/host/xhci-ring.c NUC980-linux-4.4.y-master/drivers/usb/host/xhci-ring.c
+--- linux-4.4.194/drivers/usb/host/xhci-ring.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/usb/host/xhci-ring.c	2021-06-20 19:14:48.000000000 -0700
+@@ -1602,9 +1602,6 @@ static void handle_port_status(struct xh
+ 		usb_hcd_resume_root_hub(hcd);
+ 	}
+ 
+-	if (hcd->speed >= HCD_USB3 && (temp & PORT_PLS_MASK) == XDEV_INACTIVE)
+-		bus_state->port_remote_wakeup &= ~(1 << faked_port_index);
+-
+ 	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
+ 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
+ 
+@@ -1623,6 +1620,7 @@ static void handle_port_status(struct xh
+ 			bus_state->port_remote_wakeup |= 1 << faked_port_index;
+ 			xhci_test_and_clear_bit(xhci, port_array,
+ 					faked_port_index, PORT_PLC);
++			usb_hcd_start_port_resume(&hcd->self, faked_port_index);
+ 			xhci_set_link_state(xhci, port_array, faked_port_index,
+ 						XDEV_U0);
+ 			/* Need to wait until the next link state change
+@@ -1660,8 +1658,6 @@ static void handle_port_status(struct xh
+ 		if (slot_id && xhci->devs[slot_id])
+ 			xhci_ring_device(xhci, slot_id);
+ 		if (bus_state->port_remote_wakeup & (1 << faked_port_index)) {
+-			bus_state->port_remote_wakeup &=
+-				~(1 << faked_port_index);
+ 			xhci_test_and_clear_bit(xhci, port_array,
+ 					faked_port_index, PORT_PLC);
+ 			usb_wakeup_notification(hcd->self.root_hub,

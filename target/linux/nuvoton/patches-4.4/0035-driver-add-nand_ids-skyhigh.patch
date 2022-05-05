@@ -1,0 +1,15 @@
+--- a/drivers/mtd/nand/nand_ids.c	2022-01-20 01:23:46.734197000 -0800
++++ b/drivers/mtd/nand/nand_ids.c	2022-01-20 21:19:40.927748197 -0800
+@@ -142,7 +142,11 @@ struct nand_flash_dev nand_flash_ids[] =
+ 		{ .id = {0x98, 0xd7, 0xa0, 0x32} },
+ 		SZ_8K, SZ_4K, SZ_1M, 0, 4, 368, NAND_ECC_INFO(24, SZ_1K)
+ 	},
+-
++	{
++		"S35ML02G 2G 3.3V",
++		{ .id = {0x01, 0x25} }, SZ_2K, 256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
++	},
++	
+ 	LEGACY_ID_NAND("NAND 4MiB 5V 8-bit",   0x6B, 4, SZ_8K, SP_OPTIONS),
+ 	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 0xE3, 4, SZ_8K, SP_OPTIONS),
+ 	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 0xE5, 4, SZ_8K, SP_OPTIONS),

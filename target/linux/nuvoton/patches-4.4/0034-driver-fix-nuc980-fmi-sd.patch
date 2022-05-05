@@ -1,0 +1,29 @@
+--- a/drivers/mmc/host/nuc980_fmi.c	2022-01-20 00:18:01.058951000 -0800
++++ b/drivers/mmc/host/nuc980_fmi.c	2022-01-20 01:22:52.925151772 -0800
+@@ -821,12 +821,26 @@ static int nuc980_fmi_probe(struct platf
+ 	if (!request_mem_region(res->start, res->end - res->start + 1, DRIVER_NAME))
+ 		return -EBUSY;
+ 
++#ifdef CONFIG_OF
++
++	/* initial SD0 pin from device-tree */
++	p = devm_pinctrl_get_select_default(&pdev->dev);
++	if (IS_ERR(p)) {
++		dev_info(&pdev->dev, "unable to reserve pin from dt\n");
++		ret = PTR_ERR(p);
++	}
++	else {
++		dev_dbg(&pdev->dev, "request fmi-sd0 pin from dt\n");
++	}
++#else
++
+ 	/* initial SD0 pin -> PC5~10, PC12 */
+ 	p = devm_pinctrl_get_select(&pdev->dev, "sd0");
+ 	if (IS_ERR(p)) {
+ 		dev_err(&pdev->dev, "unable to reserve pin\n");
+ 		ret = PTR_ERR(p);
+ 	}
++#endif
+ 
+ 	clk_prepare(clk_get(NULL, "fmi_hclk"));
+ 	clk_enable(clk_get(NULL, "fmi_hclk"));

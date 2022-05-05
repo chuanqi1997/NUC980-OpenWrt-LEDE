@@ -25,7 +25,9 @@ platform_check_image() {
 	local board=$(nuc980_board_name)
 
 	case "$board" in
-	NUC980-IOT-GateWay)
+	nuc980-iot-gateway|\
+	nuc980-iot-cm100|\
+	nuc980-iot-psm100)
 		nand_do_platform_check $board $1
 		return $?;
 		;;
@@ -46,7 +48,9 @@ platform_pre_upgrade() {
 	local board=$(nuc980_board_name)
 
 	case "$board" in
-	NUC980-IOT-GateWay)
+	nuc980-iot-gateway|\
+	nuc980-iot-cm100|\
+	nuc980-iot-psm100)
 		nand_do_upgrade "$1"
 		#nand_do_upgrade "$ARGV"
 		#default_do_upgrade "$ARGV"
@@ -60,6 +64,5 @@ blink_led() {
 }
 
 append blink_led
-
 #append sysupgrade_pre_upgrade disable_watchdog
 #append sysupgrade_pre_upgrade blink_led

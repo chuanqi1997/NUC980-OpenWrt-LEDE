@@ -1,0 +1,21 @@
+diff -uprN linux-4.4.194/sound/soc/nuc980/nuc980-audio.c NUC980-linux-4.4.y-master/sound/soc/nuc980/nuc980-audio.c
+--- linux-4.4.194/sound/soc/nuc980/nuc980-audio.c	2021-08-05 23:48:46.579220000 -0700
++++ NUC980-linux-4.4.y-master/sound/soc/nuc980/nuc980-audio.c	2021-06-20 19:14:48.000000000 -0700
+@@ -41,7 +41,7 @@ static int nuc980_audio_hw_params(struct
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	ret = snd_soc_dai_set_sysclk(codec_dai, NAU8822_PLL, 12000000, SND_SOC_CLOCK_OUT);
++	ret = snd_soc_dai_set_sysclk(codec_dai, NAU8822_CLK_PLL, 12000000, SND_SOC_CLOCK_OUT);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -69,7 +69,7 @@ static int nuc980_audio_hw_params(struct
+ 	cpu_dai->sample_bits = params_width(params);
+ 
+ 	/* set the codec system clock for DAC and ADC */
+-	ret = snd_soc_dai_set_sysclk(codec_dai, NAU8822_MCLK, clk, SND_SOC_CLOCK_OUT);
++	ret = snd_soc_dai_set_sysclk(codec_dai, NAU8822_CLK_MCLK, clk, SND_SOC_CLOCK_OUT);
+ 	if (ret < 0)
+ 		return ret;
+ 

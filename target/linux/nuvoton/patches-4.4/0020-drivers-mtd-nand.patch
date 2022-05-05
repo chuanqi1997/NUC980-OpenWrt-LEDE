@@ -1,0 +1,204 @@
+diff -uprN linux-4.4.194/drivers/mtd/nand/nand_ecc.c NUC980-linux-4.4.y-master/drivers/mtd/nand/nand_ecc.c
+--- linux-4.4.194/drivers/mtd/nand/nand_ecc.c	2021-08-05 23:48:46.299220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/nand/nand_ecc.c	2021-06-20 19:14:48.000000000 -0700
+@@ -507,7 +507,7 @@ int __nand_correct_data(unsigned char *b
+ 		return 1;	/* error in ECC data; no action needed */
+ 
+ 	pr_err("%s: uncorrectable ECC error\n", __func__);
+-	return -EBADMSG;
++	return -1;
+ }
+ EXPORT_SYMBOL(__nand_correct_data);
+ 
+diff -uprN linux-4.4.194/drivers/mtd/nand/nand_ids.c NUC980-linux-4.4.y-master/drivers/mtd/nand/nand_ids.c
+--- linux-4.4.194/drivers/mtd/nand/nand_ids.c	2021-08-05 23:48:46.563220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/nand/nand_ids.c	2021-06-20 19:14:48.000000000 -0700
+@@ -29,15 +29,35 @@ struct nand_flash_dev nand_flash_ids[] =
+ 	 * listed by full ID. We list them first so that we can easily identify
+ 	 * the most specific match.
+ 	 */
++#ifndef CONFIG_WINBOND_W25N02
+ 	{
+ 		"W25N01GV 1G 3.3V",
+-		{ .id = {0xef, 0xaa} }, SZ_2K, 128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
++		{ .id = {0xef, 0xaa, 0x21} }, SZ_2K, 128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
+ 	},
++#else
+ 	{
+-		"W25N02GV 2G 3.3V",
++		"W25N02KV 2G 3.3V",
++		{ .id = {0xef, 0xaa, 0x22} }, SZ_2K, 256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
++	},
++#endif
++	{
++		"W25M02GV 2G 3.3V",
+ 		{ .id = {0xef, 0xab} }, SZ_2K, 256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
+ 	},
+ 	{
++		"GD5FGQ4UExxG 1G 3.3V",
++		{ .id = {0xc8, 0xd1} }, SZ_2K, 128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(1, SZ_512)
++	},
++	{
++		"GD5FGQ5UExxG 1G 3.3V",
++		{ .id = {0xc8, 0x51} }, SZ_2K, 128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(1, SZ_512)
++	},
++	{
++		"TC58CVG0S3HRAIJ 1G 3.3V",
++		{ .id = {0x98, 0xe2, 0x40} }, SZ_2K, 128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(1, SZ_512)
++	},
++
++	{
+ 		"MX35LF1GE4AB 1G 3.3V",
+ 		{ .id = {0xc2, 0x12} }, SZ_2K, 128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
+ 	},
+@@ -58,6 +78,10 @@ struct nand_flash_dev nand_flash_ids[] =
+ 		{ .id = {0x0b, 0xf2} }, SZ_2K, 256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
+ 	},
+ 	{
++		"XT26G01C 1G 3.3V",
++		{ .id = {0x0b, 0x11} }, SZ_2K, 128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
++	},
++	{
+ 		"MKSV1GCW-BE 1G 3.3V",
+ 		{ .id = {0xd5, 0x11} }, SZ_2K, 128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
+ 	},
+@@ -70,6 +94,10 @@ struct nand_flash_dev nand_flash_ids[] =
+ 		{ .id = {0x9b, 0x12} }, SZ_2K, 128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
+ 	},
+ 	{
++		"MT29F2G01 2G 3.3V",
++		{ .id = {0x2c, 0x24} }, SZ_2K, 256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(1, SZ_512)
++	},
++	{
+ 		"TC58NVG0S3E 1G 3.3V 8-bit",
+ 		{ .id = {0x98, 0xd1, 0x90, 0x15, 0x76, 0x14, 0x01, 0x00} },
+ 		SZ_2K, SZ_128, SZ_128K, 0, 8, 64, NAND_ECC_INFO(1, SZ_512),
+@@ -106,6 +134,14 @@ struct nand_flash_dev nand_flash_ids[] =
+ 		SZ_8K, SZ_8K, SZ_2M, 0, 6, 640, NAND_ECC_INFO(40, SZ_1K),
+ 		4
+ 	},
++	{"MT29F32G08ABAAA 32G 3.3V 8-bit",
++		{ .id = {0x2C, 0x68, 0x00, 0x27, 0xA9} },
++		SZ_8K, SZ_4K, SZ_1M, 0, 5, 448, NAND_ECC_INFO(12, SZ_512)
++	},
++	{"TC58NVG5H2H 32G 3.3V 8-bit",
++		{ .id = {0x98, 0xd7, 0xa0, 0x32} },
++		SZ_8K, SZ_4K, SZ_1M, 0, 4, 368, NAND_ECC_INFO(24, SZ_1K)
++	},
+ 
+ 	LEGACY_ID_NAND("NAND 4MiB 5V 8-bit",   0x6B, 4, SZ_8K, SP_OPTIONS),
+ 	LEGACY_ID_NAND("NAND 4MiB 3,3V 8-bit", 0xE3, 4, SZ_8K, SP_OPTIONS),
+@@ -238,6 +274,7 @@ struct nand_manufacturers nand_manuf_ids
+ 	{NAND_MFR_WINBOND, "Winbond"},
+ 	{NAND_MFR_XTX, "XTX"},
+ 	{NAND_MFR_MK, "MK"},
++	{NAND_MFR_GIGA, "Giga Device"},
+ 	{0x0, "Unknown"}
+ };
+ 
+diff -uprN linux-4.4.194/drivers/mtd/nand/nuc980_nand.c NUC980-linux-4.4.y-master/drivers/mtd/nand/nuc980_nand.c
+--- linux-4.4.194/drivers/mtd/nand/nuc980_nand.c	2021-08-05 23:48:46.563220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/nand/nuc980_nand.c	2021-06-20 19:14:48.000000000 -0700
+@@ -36,7 +36,7 @@
+ 
+ #define RESET_FMI   0x01
+ #define NAND_EN     0x08
+-#define READYBUSY   (0x01 << 18)
++#define READYBUSY   0x400
+ 
+ #define SWRST       0x01
+ #define PSIZE       (0x01 << 3)
+@@ -482,7 +482,8 @@ int fmiSMCorrectData (struct mtd_info *m
+ #endif
+ 					fmiSM_CorrectData_BCH(jj*4+ii, uErrorCnt, (char*)uDAddr);
+ 					uReportErrCnt += uErrorCnt;
+-					break;
++					uStatus >>= 8;
++					continue;
+ 				} else // uncorrectable error or ECC error
+ 				{
+ #ifdef NUC980_NAND_DEBUG
+@@ -789,11 +790,11 @@ static void nuc980_write_buf_dma(struct
+  */
+ static int nuc980_check_rb(struct nuc980_nand_info *nand)
+ {
+-	unsigned int val;
++	unsigned int volatile val;
+ 
+ 	ENTER();
+ 	spin_lock(&nand->lock);
+-	val = readl(REG_SMISR) & READYBUSY;
++	val = (readl(REG_SMISR) & READYBUSY) ? 1 : 0;
+ 	spin_unlock(&nand->lock);
+ 	LEAVE();
+ 
+@@ -830,9 +831,11 @@ static void nuc980_nand_command_lp(struc
+ 
+ 	write_cmd_reg(nand, command & 0xff);
+ 
++	writel(0x400, REG_SMISR);
+ 	if (command == NAND_CMD_READID)
+ 	{
+ 		write_addr_reg(nand, ENDADDR);
++		return;
+ 	}
+ 	else
+ 	{
+@@ -902,8 +905,11 @@ static void nuc980_nand_command_lp(struc
+ 		}
+ 	}
+ 
+-	while (!nuc980_check_rb(nand)) ;
+-
++	while (1)
++	{
++		if (nuc980_check_rb(nand) == 1)
++			break;
++	}
+ 	LEAVE();
+ }
+ 
+diff -uprN linux-4.4.194/drivers/mtd/nand/plat_nand.c NUC980-linux-4.4.y-master/drivers/mtd/nand/plat_nand.c
+--- linux-4.4.194/drivers/mtd/nand/plat_nand.c	2021-08-05 23:48:46.299220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/nand/plat_nand.c	2021-06-20 19:14:48.000000000 -0700
+@@ -87,18 +87,7 @@ static int plat_nand_probe(struct platfo
+ 	}
+ 
+ 	/* Scan to find existence of the device */
+-	if (nand_scan_ident(&data->mtd, pdata->chip.nr_chips, NULL)) {
+-		err = -ENXIO;
+-		goto out;
+-	}
+-
+-	if (pdata->chip.chip_fixup) {
+-		err = pdata->chip.chip_fixup(&data->mtd);
+-		if (err)
+-			goto out;
+-	}
+-
+-	if (nand_scan_tail(&data->mtd)) {
++	if (nand_scan(&data->mtd, pdata->chip.nr_chips)) {
+ 		err = -ENXIO;
+ 		goto out;
+ 	}
+diff -uprN linux-4.4.194/drivers/mtd/nand/sh_flctl.c NUC980-linux-4.4.y-master/drivers/mtd/nand/sh_flctl.c
+--- linux-4.4.194/drivers/mtd/nand/sh_flctl.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/mtd/nand/sh_flctl.c	2021-06-20 19:14:48.000000000 -0700
+@@ -428,7 +428,7 @@ static void read_fiforeg(struct sh_flctl
+ 
+ 	/* initiate DMA transfer */
+ 	if (flctl->chan_fifo0_rx && rlen >= 32 &&
+-		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_DEV_TO_MEM) > 0)
++		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_FROM_DEVICE) > 0)
+ 			goto convert;	/* DMA success */
+ 
+ 	/* do polling transfer */
+@@ -487,7 +487,7 @@ static void write_ec_fiforeg(struct sh_f
+ 
+ 	/* initiate DMA transfer */
+ 	if (flctl->chan_fifo0_tx && rlen >= 32 &&
+-		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_MEM_TO_DEV) > 0)
++		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_TO_DEVICE) > 0)
+ 			return;	/* DMA success */
+ 
+ 	/* do polling transfer */

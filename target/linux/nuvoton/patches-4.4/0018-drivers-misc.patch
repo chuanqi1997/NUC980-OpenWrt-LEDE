@@ -1,0 +1,491 @@
+diff -uprN linux-4.4.194/drivers/misc/altera-stapl/altera.c NUC980-linux-4.4.y-master/drivers/misc/altera-stapl/altera.c
+--- linux-4.4.194/drivers/misc/altera-stapl/altera.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/altera-stapl/altera.c	2021-06-20 19:14:48.000000000 -0700
+@@ -2176,8 +2176,7 @@ static int altera_get_note(u8 *p, s32 pr
+ 			key_ptr = &p[note_strings +
+ 					get_unaligned_be32(
+ 					&p[note_table + (8 * i)])];
+-			if ((strncasecmp(key, key_ptr, strlen(key_ptr)) == 0) &&
+-						(key != NULL)) {
++			if (key && !strncasecmp(key, key_ptr, strlen(key_ptr))) {
+ 				status = 0;
+ 
+ 				value_ptr = &p[note_strings +
+diff -uprN linux-4.4.194/drivers/misc/genwqe/card_utils.c NUC980-linux-4.4.y-master/drivers/misc/genwqe/card_utils.c
+--- linux-4.4.194/drivers/misc/genwqe/card_utils.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/genwqe/card_utils.c	2021-06-20 19:14:48.000000000 -0700
+@@ -298,7 +298,7 @@ static int genwqe_sgl_size(int num_pages
+ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
+ 			  void __user *user_addr, size_t user_size)
+ {
+-	int rc;
++	int ret = -ENOMEM;
+ 	struct pci_dev *pci_dev = cd->pci_dev;
+ 
+ 	sgl->fpage_offs = offset_in_page((unsigned long)user_addr);
+@@ -317,7 +317,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_
+ 	if (get_order(sgl->sgl_size) > MAX_ORDER) {
+ 		dev_err(&pci_dev->dev,
+ 			"[%s] err: too much memory requested!\n", __func__);
+-		return -ENOMEM;
++		return ret;
+ 	}
+ 
+ 	sgl->sgl = __genwqe_alloc_consistent(cd, sgl->sgl_size,
+@@ -325,7 +325,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_
+ 	if (sgl->sgl == NULL) {
+ 		dev_err(&pci_dev->dev,
+ 			"[%s] err: no memory available!\n", __func__);
+-		return -ENOMEM;
++		return ret;
+ 	}
+ 
+ 	/* Only use buffering on incomplete pages */
+@@ -338,7 +338,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_
+ 		/* Sync with user memory */
+ 		if (copy_from_user(sgl->fpage + sgl->fpage_offs,
+ 				   user_addr, sgl->fpage_size)) {
+-			rc = -EFAULT;
++			ret = -EFAULT;
+ 			goto err_out;
+ 		}
+ 	}
+@@ -351,7 +351,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_
+ 		/* Sync with user memory */
+ 		if (copy_from_user(sgl->lpage, user_addr + user_size -
+ 				   sgl->lpage_size, sgl->lpage_size)) {
+-			rc = -EFAULT;
++			ret = -EFAULT;
+ 			goto err_out2;
+ 		}
+ 	}
+@@ -373,7 +373,8 @@ int genwqe_alloc_sync_sgl(struct genwqe_
+ 	sgl->sgl = NULL;
+ 	sgl->sgl_dma_addr = 0;
+ 	sgl->sgl_size = 0;
+-	return -ENOMEM;
++
++	return ret;
+ }
+ 
+ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
+diff -uprN linux-4.4.194/drivers/misc/Kconfig NUC980-linux-4.4.y-master/drivers/misc/Kconfig
+--- linux-4.4.194/drivers/misc/Kconfig	2021-08-05 23:48:46.559220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/Kconfig	2021-06-20 19:14:48.000000000 -0700
+@@ -150,18 +150,6 @@ config SGI_IOC4
+ 	  If you have an SGI Altix with an IOC4-based card say Y.
+ 	  Otherwise say N.
+ 
+-config OWL_LOADER
+-	tristate "Owl loader for initializing Atheros PCI(e) Wifi chips"
+-	depends on PCI
+-	---help---
+-	This kernel module helps to initialize certain Qualcomm
+-	Atheros' PCI(e) Wifi chips, which have the init data
+-	(which contains the PCI device ID for example) stored
+-	together with the calibration data in the file system.
+-
+-	This is necessary for devices like the Cisco Meraki Z1, say M.
+-	Otherwise say N.
+-
+ config TIFM_CORE
+ 	tristate "TI Flash Media interface support"
+ 	depends on PCI
+@@ -810,7 +798,7 @@ choice
+ 	help
+ 	  Select SC0 multi function pin.
+ 
+-	config NUC980_SC0_PG
++	config NUC980_SC0_PA
+ 		bool "Use port A"
+ 	config NUC980_SC0_PC
+ 		bool "Use port C"
+diff -uprN linux-4.4.194/drivers/misc/kgdbts.c NUC980-linux-4.4.y-master/drivers/misc/kgdbts.c
+--- linux-4.4.194/drivers/misc/kgdbts.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/kgdbts.c	2021-06-20 19:14:48.000000000 -0700
+@@ -979,6 +979,12 @@ static void kgdbts_run_tests(void)
+ 	int nmi_sleep = 0;
+ 	int i;
+ 
++	verbose = 0;
++	if (strstr(config, "V1"))
++		verbose = 1;
++	if (strstr(config, "V2"))
++		verbose = 2;
++
+ 	ptr = strchr(config, 'F');
+ 	if (ptr)
+ 		fork_test = simple_strtol(ptr + 1, NULL, 10);
+@@ -1062,13 +1068,6 @@ static int kgdbts_option_setup(char *opt
+ 		return -ENOSPC;
+ 	}
+ 	strcpy(config, opt);
+-
+-	verbose = 0;
+-	if (strstr(config, "V1"))
+-		verbose = 1;
+-	if (strstr(config, "V2"))
+-		verbose = 2;
+-
+ 	return 0;
+ }
+ 
+@@ -1080,9 +1079,6 @@ static int configure_kgdbts(void)
+ 
+ 	if (!strlen(config) || isspace(config[0]))
+ 		goto noconfig;
+-	err = kgdbts_option_setup(config);
+-	if (err)
+-		goto noconfig;
+ 
+ 	final_ack = 0;
+ 	run_plant_and_detach_test(1);
+diff -uprN linux-4.4.194/drivers/misc/Makefile NUC980-linux-4.4.y-master/drivers/misc/Makefile
+--- linux-4.4.194/drivers/misc/Makefile	2021-08-05 23:48:46.559220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/Makefile	2021-06-20 19:14:48.000000000 -0700
+@@ -15,7 +15,6 @@ obj-$(CONFIG_BMP085_SPI)	+= bmp085-spi.o
+ obj-$(CONFIG_DUMMY_IRQ)		+= dummy-irq.o
+ obj-$(CONFIG_ICS932S401)	+= ics932s401.o
+ obj-$(CONFIG_LKDTM)		+= lkdtm.o
+-obj-$(CONFIG_OWL_LOADER)	+= owl-loader.o
+ obj-$(CONFIG_TIFM_CORE)       	+= tifm_core.o
+ obj-$(CONFIG_TIFM_7XX1)       	+= tifm_7xx1.o
+ obj-$(CONFIG_PHANTOM)		+= phantom.o
+diff -uprN linux-4.4.194/drivers/misc/mei/bus.c NUC980-linux-4.4.y-master/drivers/misc/mei/bus.c
+--- linux-4.4.194/drivers/misc/mei/bus.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/mei/bus.c	2021-06-20 19:14:48.000000000 -0700
+@@ -761,15 +761,16 @@ static struct device_type mei_cl_device_
+ 
+ /**
+  * mei_cl_bus_set_name - set device name for me client device
++ *  <controller>-<client device>
++ *  Example: 0000:00:16.0-55213584-9a29-4916-badf-0fb7ed682aeb
+  *
+  * @cldev: me client device
+  */
+ static inline void mei_cl_bus_set_name(struct mei_cl_device *cldev)
+ {
+-	dev_set_name(&cldev->dev, "mei:%s:%pUl:%02X",
+-		     cldev->name,
+-		     mei_me_cl_uuid(cldev->me_cl),
+-		     mei_me_cl_ver(cldev->me_cl));
++	dev_set_name(&cldev->dev, "%s-%pUl",
++		     dev_name(cldev->bus->dev),
++		     mei_me_cl_uuid(cldev->me_cl));
+ }
+ 
+ /**
+diff -uprN linux-4.4.194/drivers/misc/mic/scif/scif_fence.c NUC980-linux-4.4.y-master/drivers/misc/mic/scif/scif_fence.c
+--- linux-4.4.194/drivers/misc/mic/scif/scif_fence.c	2019-09-20 22:12:54.000000000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/mic/scif/scif_fence.c	2021-06-20 19:14:48.000000000 -0700
+@@ -271,7 +271,7 @@ static int _scif_prog_signal(scif_epd_t
+ dma_fail:
+ 	if (!x100)
+ 		dma_pool_free(ep->remote_dev->signal_pool, status,
+-			      status->src_dma_addr);
++			      src - offsetof(struct scif_status, val));
+ alloc_fail:
+ 	return err;
+ }
+diff -uprN linux-4.4.194/drivers/misc/nuc980-ebi.c NUC980-linux-4.4.y-master/drivers/misc/nuc980-ebi.c
+--- linux-4.4.194/drivers/misc/nuc980-ebi.c	2021-08-05 23:48:46.559220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/nuc980-ebi.c	2021-06-20 19:14:48.000000000 -0700
+@@ -133,10 +133,10 @@ static int ebi_open(struct inode *inode,
+ 		s = pinctrl_lookup_state(ebi->pinctrl, "ebi-16bit-0");  //ebi 16bit cs0
+ 		break;
+ 	case 1:
+-		s = pinctrl_lookup_state(ebi->pinctrl, "ebi-16bit-4");  //ebi 16bit cs1
++		s = pinctrl_lookup_state(ebi->pinctrl, "ebi-16bit-2");  //ebi 16bit cs1
+ 		break;
+ 	case 2:
+-		s = pinctrl_lookup_state(ebi->pinctrl, "ebi-16bit-8");  //ebi 16bit cs2
++		s = pinctrl_lookup_state(ebi->pinctrl, "ebi-16bit-4");  //ebi 16bit cs2
+ 		break;
+ 	};
+ 	if (IS_ERR(s)) {
+diff -uprN linux-4.4.194/drivers/misc/nuc980-qspi0-slave.c NUC980-linux-4.4.y-master/drivers/misc/nuc980-qspi0-slave.c
+--- linux-4.4.194/drivers/misc/nuc980-qspi0-slave.c	2021-08-05 23:48:46.559220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/nuc980-qspi0-slave.c	2021-06-20 19:14:48.000000000 -0700
+@@ -320,7 +320,7 @@ static int nuc980_qspi0_update_state(str
+ 
+ 	spimode = spi->mode & 0xff; //remove dual/quad bit
+ 
+-	if ((spimode == SPI_MODE_0) || (spimode == SPI_MODE_2)) {
++	if ((spimode == SPI_MODE_0) || (spimode == SPI_MODE_3)) {
+ 		hw->pdata->txneg = 1;
+ 		hw->pdata->rxneg = 0;
+ 	} else {
+diff -uprN linux-4.4.194/drivers/misc/nuc980-spi0-slave.c NUC980-linux-4.4.y-master/drivers/misc/nuc980-spi0-slave.c
+--- linux-4.4.194/drivers/misc/nuc980-spi0-slave.c	2021-08-05 23:48:46.563220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/nuc980-spi0-slave.c	2021-06-20 19:14:48.000000000 -0700
+@@ -320,7 +320,7 @@ static int nuc980_spi0_update_state(stru
+ 
+ 	spimode = spi->mode & 0xff; //remove dual/quad bit
+ 
+-	if ((spimode == SPI_MODE_0) || (spimode == SPI_MODE_2)) {
++	if ((spimode == SPI_MODE_0) || (spimode == SPI_MODE_3)) {
+ 		hw->pdata->txneg = 1;
+ 		hw->pdata->rxneg = 0;
+ 	} else {
+diff -uprN linux-4.4.194/drivers/misc/nuc980-spi1-slave.c NUC980-linux-4.4.y-master/drivers/misc/nuc980-spi1-slave.c
+--- linux-4.4.194/drivers/misc/nuc980-spi1-slave.c	2021-08-05 23:48:46.563220000 -0700
++++ NUC980-linux-4.4.y-master/drivers/misc/nuc980-spi1-slave.c	2021-06-20 19:14:48.000000000 -0700
+@@ -320,7 +320,7 @@ static int nuc980_spi1_update_state(stru
+ 
+ 	spimode = spi->mode & 0xff; //remove dual/quad bit
+ 
+-	if ((spimode == SPI_MODE_0) || (spimode == SPI_MODE_2)) {
++	if ((spimode == SPI_MODE_0) || (spimode == SPI_MODE_3)) {
+ 		hw->pdata->txneg = 1;
+ 		hw->pdata->rxneg = 0;
+ 	} else {
+diff -uprN linux-4.4.194/drivers/misc/owl-loader.c NUC980-linux-4.4.y-master/drivers/misc/owl-loader.c
+--- linux-4.4.194/drivers/misc/owl-loader.c	2019-11-18 21:51:15.000000000 -0800
++++ NUC980-linux-4.4.y-master/drivers/misc/owl-loader.c	1969-12-31 16:00:00.000000000 -0800
+@@ -1,246 +0,0 @@
+-/*
+- * Initialize Owl Emulation Devices
+- *
+- * Copyright (C) 2016 Christian Lamparter <chunkeey@googlemail.com>
+- * Copyright (C) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
+- *
+- * This program is free software; you can redistribute it and/or modify it
+- * under the terms of the GNU General Public License version 2 as published
+- * by the Free Software Foundation.
+- *
+- * Some devices (like the Cisco Meraki Z1 Cloud Managed Teleworker Gateway)
+- * need to be able to initialize the PCIe wifi device. Normally, this is done
+- * during the early stages of booting linux, because the necessary init code
+- * is read from the memory mapped SPI and passed to pci_enable_ath9k_fixup.
+- * However,this isn't possible for devices which have the init code for the
+- * Atheros chip stored on NAND. Hence, this module can be used to initialze
+- * the chip when the user-space is ready to extract the init code.
+- */
+-#include <linux/module.h>
+-#include <linux/version.h>
+-#include <linux/completion.h>
+-#include <linux/etherdevice.h>
+-#include <linux/firmware.h>
+-#include <linux/pci.h>
+-#include <linux/delay.h>
+-#include <linux/platform_device.h>
+-#include <linux/ath9k_platform.h>
+-
+-struct owl_ctx {
+-	struct completion eeprom_load;
+-};
+-
+-#define EEPROM_FILENAME_LEN 100
+-
+-#define AR5416_EEPROM_MAGIC 0xa55a
+-
+-static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
+-			   size_t cal_len)
+-{
+-	void __iomem *mem;
+-	const void *cal_end = (void *)cal_data + cal_len;
+-	const struct {
+-		__be16 reg;
+-		__be16 low_val;
+-		__be16 high_val;
+-	} __packed *data;
+-	u16 cmd;
+-	u32 bar0;
+-	bool swap_needed = false;
+-
+-	if (*cal_data != AR5416_EEPROM_MAGIC) {
+-		if (*cal_data != swab16(AR5416_EEPROM_MAGIC)) {
+-			dev_err(&pdev->dev, "invalid calibration data\n");
+-			return -EINVAL;
+-		}
+-
+-		dev_dbg(&pdev->dev, "calibration data needs swapping\n");
+-		swap_needed = true;
+-	}
+-
+-	dev_info(&pdev->dev, "fixup device configuration\n");
+-
+-	mem = pcim_iomap(pdev, 0, 0);
+-	if (!mem) {
+-		dev_err(&pdev->dev, "ioremap error\n");
+-		return -EINVAL;
+-	}
+-
+-	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
+-	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0,
+-			       pci_resource_start(pdev, 0));
+-	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+-	cmd |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
+-	pci_write_config_word(pdev, PCI_COMMAND, cmd);
+-
+-	/* set pointer to first reg address */
+-	for (data = (const void *) (cal_data + 3);
+-	     (const void *) data <= cal_end && data->reg != cpu_to_be16(~0);
+-	     data++) {
+-		u32 val;
+-		u16 reg;
+-
+-		reg = data->reg;
+-		val = data->low_val;
+-		val |= data->high_val << 16;
+-
+-		if (swap_needed) {
+-			reg = swab16(reg);
+-			val = swahb32(val);
+-		}
+-
+-#if CONFIG_LANTIQ
+-		val = swab32(val);
+-#endif
+-
+-		__raw_writel(val, mem + reg);
+-		udelay(100);
+-	}
+-
+-	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+-	cmd &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
+-	pci_write_config_word(pdev, PCI_COMMAND, cmd);
+-
+-	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, bar0);
+-	pcim_iounmap(pdev, mem);
+-
+-	pci_disable_device(pdev);
+-
+-	return 0;
+-}
+-
+-static void owl_fw_cb(const struct firmware *fw, void *context)
+-{
+-	struct pci_dev *pdev = (struct pci_dev *) context;
+-	struct owl_ctx *ctx = (struct owl_ctx *) pci_get_drvdata(pdev);
+-	struct ath9k_platform_data *pdata = dev_get_platdata(&pdev->dev);
+-	struct pci_bus *bus;
+-
+-	complete(&ctx->eeprom_load);
+-
+-	if (!fw) {
+-		dev_err(&pdev->dev, "no eeprom data received.\n");
+-		goto release;
+-	}
+-
+-	/* also note that we are doing *u16 operations on the file */
+-	if (fw->size > sizeof(pdata->eeprom_data) || fw->size < 0x200 ||
+-	    (fw->size & 1) == 1) {
+-		dev_err(&pdev->dev, "eeprom file has an invalid size.\n");
+-		goto release;
+-	}
+-
+-	if (pdata) {
+-		memcpy(pdata->eeprom_data, fw->data, fw->size);
+-
+-		/*
+-		 * eeprom has been successfully loaded - pass the data to ath9k
+-		 * but remove the eeprom_name, so it doesn't try to load it too.
+-		 */
+-		pdata->eeprom_name = NULL;
+-	}
+-
+-	if (ath9k_pci_fixup(pdev, (const u16 *) fw->data, fw->size))
+-		goto release;
+-
+-	pci_lock_rescan_remove();
+-	bus = pdev->bus;
+-	pci_stop_and_remove_bus_device(pdev);
+-	/*
+-	 * the device should come back with the proper
+-	 * ProductId. But we have to initiate a rescan.
+-	 */
+-	pci_rescan_bus(bus);
+-	pci_unlock_rescan_remove();
+-
+-release:
+-	release_firmware(fw);
+-}
+-
+-static const char *owl_get_eeprom_name(struct pci_dev *pdev)
+-{
+-	struct device *dev = &pdev->dev;
+-	struct ath9k_platform_data *pdata;
+-	char *eeprom_name;
+-
+-	/* try the existing platform data first */
+-	pdata = dev_get_platdata(dev);
+-	if (pdata && pdata->eeprom_name)
+-		return pdata->eeprom_name;
+-
+-	dev_dbg(dev, "using auto-generated eeprom filename\n");
+-
+-	eeprom_name = devm_kzalloc(dev, EEPROM_FILENAME_LEN, GFP_KERNEL);
+-	if (!eeprom_name)
+-		return NULL;
+-
+-	/* this should match the pattern used in ath9k/init.c */
+-	scnprintf(eeprom_name, EEPROM_FILENAME_LEN, "ath9k-eeprom-pci-%s.bin",
+-		  dev_name(dev));
+-
+-	return eeprom_name;
+-}
+-
+-static int owl_probe(struct pci_dev *pdev,
+-		    const struct pci_device_id *id)
+-{
+-	struct owl_ctx *ctx;
+-	const char *eeprom_name;
+-	int err = 0;
+-
+-	if (pcim_enable_device(pdev))
+-		return -EIO;
+-
+-	pcim_pin_device(pdev);
+-
+-	eeprom_name = owl_get_eeprom_name(pdev);
+-	if (!eeprom_name) {
+-		dev_err(&pdev->dev, "no eeprom filename found.\n");
+-		return -ENODEV;
+-	}
+-
+-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+-	if (!ctx) {
+-		dev_err(&pdev->dev, "failed to alloc device context.\n");
+-		return -ENOMEM;
+-	}
+-	init_completion(&ctx->eeprom_load);
+-
+-	pci_set_drvdata(pdev, ctx);
+-	err = request_firmware_nowait(THIS_MODULE, true, eeprom_name,
+-				      &pdev->dev, GFP_KERNEL, pdev, owl_fw_cb);
+-	if (err) {
+-		dev_err(&pdev->dev, "failed to request caldata (%d).\n", err);
+-		kfree(ctx);
+-	}
+-	return err;
+-}
+-
+-static void owl_remove(struct pci_dev *pdev)
+-{
+-	struct owl_ctx *ctx = pci_get_drvdata(pdev);
+-
+-	if (ctx) {
+-		wait_for_completion(&ctx->eeprom_load);
+-		pci_set_drvdata(pdev, NULL);
+-		kfree(ctx);
+-	}
+-}
+-
+-static const struct pci_device_id owl_pci_table[] = {
+-	{ PCI_VDEVICE(ATHEROS, 0xff1c) }, /* PCIe */
+-	{ PCI_VDEVICE(ATHEROS, 0xff1d) }, /* PCI */
+-	{ },
+-};
+-MODULE_DEVICE_TABLE(pci, owl_pci_table);
+-
+-static struct pci_driver owl_driver = {
+-	.name		= "owl-loader",
+-	.id_table	= owl_pci_table,
+-	.probe		= owl_probe,
+-	.remove		= owl_remove,
+-};
+-module_pci_driver(owl_driver);
+-MODULE_AUTHOR("Christian Lamparter <chunkeey@googlemail.com>");
+-MODULE_DESCRIPTION("Initializes Atheros' Owl Emulation devices");
+-MODULE_LICENSE("GPL v2");

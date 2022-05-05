@@ -1,0 +1,203 @@
+diff -uprN a/drivers/staging/mt29f_spinand/giga_spinand.c b/drivers/staging/mt29f_spinand/giga_spinand.c
+--- a/drivers/staging/mt29f_spinand/giga_spinand.c	2022-01-20 01:23:46.694196000 -0800
++++ b/drivers/staging/mt29f_spinand/giga_spinand.c	2022-01-20 21:32:40.323734925 -0800
+@@ -172,5 +172,12 @@ int winbond_parse_id(struct spi_device *
+ 	return 0;
+ }
+ 
++int skyhigh_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id)
++{
++	if (nand_id[1] != NAND_MFR_AMD)
++		return -EINVAL;
++
++	return 0;
++}
+ 
+ MODULE_DESCRIPTION("SPI NAND driver for Gigadevice and Macronix");
+diff -uprN a/drivers/staging/mt29f_spinand/giga_spinand.h b/drivers/staging/mt29f_spinand/giga_spinand.h
+--- a/drivers/staging/mt29f_spinand/giga_spinand.h	2022-01-20 01:23:46.694196000 -0800
++++ b/drivers/staging/mt29f_spinand/giga_spinand.h	2022-01-20 21:32:52.955734710 -0800
+@@ -56,6 +56,8 @@ void winbond_write_data(struct spinand_c
+ 
+ int winbond_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
+ 
++int skyhigh_parse_id(struct spi_device *spi_nand, u8 *nand_id, u8 *id);
++
+ /* Macronix Specfic defines */
+ #define MACRONIX_NORM_RW_MASK	0x0F
+ #endif /* __GIGA_SPI_NAND_H */
+diff -uprN a/drivers/staging/mt29f_spinand/mt29f_spinand.c b/drivers/staging/mt29f_spinand/mt29f_spinand.c
+--- a/drivers/staging/mt29f_spinand/mt29f_spinand.c	2022-01-20 01:23:46.698196000 -0800
++++ b/drivers/staging/mt29f_spinand/mt29f_spinand.c	2022-01-24 04:05:54.918888164 -0800
+@@ -21,6 +21,10 @@
+ #include <linux/mtd/nand.h>
+ #include <linux/spi/spi.h>
+ 
++#if CONFIG_MTD_SPINAND_MT29F_MODULE == 1
++#include "giga_spinand.c"
++#endif
++
+ #include "mt29f_spinand.h"
+ #include "giga_spinand.h"
+ 
+@@ -151,6 +155,18 @@ struct spinand_ops spinand_dev[] = {
+ 		winbond_parse_id,
+ 		macronix_verify_ecc,
+ 	},
++	{
++		NAND_MFR_AMD, /*This is used for SKyHigh Memory*/
++		0x25,	      /*0x25 is 2GBit SPI-NAND */
++		gigadevice_set_defaults,
++		gigadevice_read_cmd,
++		winbond_read_data,
++		gigadevice_write_cmd,
++		winbond_write_data,
++		gigadevice_erase_blk,
++		skyhigh_parse_id,
++		macronix_verify_ecc,
++	},
+ 	{ },
+ };
+ 
+@@ -452,6 +468,26 @@ static int wait_till_ready(struct spi_de
+ 	return -1;
+ }
+ /**
++ * spinand_get_block- send command 0xf to read the SPI Nand Block Protected Register
++ */
++static int spinand_get_block(struct spi_device *spi_nand, u8 *block)
++{
++	struct spinand_cmd cmd = {0};
++	int retval;
++
++	cmd.cmd = CMD_READ_REG;
++	cmd.n_addr = 1;
++	cmd.addr[0] = REG_BLOCK_LOCK;
++	cmd.n_rx = 1;
++	cmd.rx_buf = block;
++
++	retval = spinand_cmd(spi_nand, &cmd);
++	if (retval < 0)
++		dev_err(&spi_nand->dev, "error %d get block\n", retval);
++	return retval;
++}
++
++/**
+  * spinand_get_otp- send command 0xf to read the SPI Nand OTP register
+  * Description:
+  *   There is one bit( bit 0x10 ) to set or to clear the internal ECC.
+@@ -488,14 +524,17 @@ static int spinand_set_otp(struct spi_de
+ 	struct spinand_cmd cmd = {0};
+ 
+ 	cmd.cmd = CMD_WRITE_REG,
+-	    cmd.n_addr = 1,
+-	        cmd.addr[0] = REG_OTP,
+-	                      cmd.n_tx = 1,
+-	                          cmd.tx_buf = otp,
++	cmd.n_addr = 1,
++	cmd.addr[0] = REG_OTP,
++	cmd.n_tx = 1,
++	cmd.tx_buf = otp,
+ 
+-	                              retval = spinand_cmd(spi_nand, &cmd);
++	retval = spinand_cmd(spi_nand, &cmd);
+ 	if (retval < 0)
+ 		dev_err(&spi_nand->dev, "error %d set otp\n", retval);
++		
++	if (wait_till_ready(spi_nand))
++		dev_err(&spi_nand->dev, "wait timedout!\n");
+ 
+ 	return retval;
+ }
+@@ -1291,7 +1330,51 @@ static int spinand_lock_block(struct spi
+ 	struct spinand_cmd cmd = {0};
+ 	int ret;
+ 	u8 otp = 0;
++	u8 blk_pt = 0;
++	
++	spinand_reset(spi_nand);
++	
++	cmd.cmd = CMD_READ_ID;
++	cmd.n_rx = 3;
++	cmd.rx_buf = &nand_id[0];
+ 
++	ret = spinand_cmd(spi_nand, &cmd);
++	if (ret < 0) {
++		dev_err(&spi_nand->dev, "error %d reading id\n", ret);
++		return ret;
++	}
++	
++	if(nand_id[1] == 0 && nand_id[1] == 0)
++		return -1;
++	
++	printk("spi-nand driver read ID:%#x %#x \n", nand_id[1], nand_id[2]);
++	
++	cmd.n_rx = 0;
++	
++	/* for SkyHigh Memory 1G/2G/4G set A0h[1]*/
++	if(nand_id[1] == NAND_MFR_AMD && (nand_id[2] == 0x15 || nand_id[2] == 0x25 || nand_id[2] == 0x35) ) {
++		/*For Data Security, bit (A0h[1]) must be enabled first before block unlock region is set*/			
++		ret = spinand_get_block(spi_nand, &blk_pt);
++		
++		blk_pt  |= 0x02;
++		lock    |= 0x02;
++		
++		printk("spi-nand driver for SkyHigh unlock the flash block:%#x\n", blk_pt);
++		
++		cmd.cmd = CMD_WRITE_REG;
++		cmd.n_addr  = 1;
++		cmd.addr[0] = REG_BLOCK_LOCK;
++		cmd.n_tx = 1;
++		cmd.tx_buf = &blk_pt;
++
++		ret = spinand_cmd(spi_nand, &cmd);
++		if (ret < 0)
++			dev_err(&spi_nand->dev, "error %d lock block\n", ret);
++			
++		if (wait_till_ready(spi_nand))
++			dev_err(&spi_nand->dev, "wait timedout!\n");
++	}
++	
+ #ifdef CONFIG_WINBOND_MULTIDIE
+ 	WB_spinand_die_select(spi_nand, 0);
+ #endif
+@@ -1307,10 +1390,13 @@ static int spinand_lock_block(struct spi
+ 	ret = spinand_cmd(spi_nand, &cmd);
+ 	if (ret < 0)
+ 		dev_err(&spi_nand->dev, "error %d lock block\n", ret);
+-
++		
++	if (wait_till_ready(spi_nand))
++		dev_err(&spi_nand->dev, "wait timedout!\n");
++		
+ #ifdef CONFIG_WINBOND_MULTIDIE
+ 	WB_spinand_die_select(spi_nand, 1);
+-#endif
++
+ 
+ 	ret = spinand_get_otp(spi_nand, &otp);
+ 
+@@ -1323,6 +1409,11 @@ static int spinand_lock_block(struct spi
+ 	ret = spinand_cmd(spi_nand, &cmd);
+ 	if (ret < 0)
+ 		dev_err(&spi_nand->dev, "error %d lock block\n", ret);
++		
++	if (wait_till_ready(spi_nand))
++		dev_err(&spi_nand->dev, "wait timedout!\n");
++		
++#endif
+ 
+ 	return ret;
+ }
+@@ -1348,7 +1439,10 @@ static int spinand_probe(struct spi_devi
+ 
+ 	info->spi = spi_nand;
+ 
+-	spinand_lock_block(spi_nand, BL_ALL_UNLOCKED);
++	if( spinand_lock_block(spi_nand, BL_ALL_UNLOCKED) < 0) {
++			dev_err(&spi_nand->dev, "unlock the nand flash failed!");
++			return -EIO;
++	}
+ 
+ 	state = devm_kzalloc(&spi_nand->dev, sizeof(struct spinand_state),
+ 	                     GFP_KERNEL);
